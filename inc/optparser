@@ -1,0 +1,75 @@
+# optparser
+function optparser()
+{
+	OPTPARSER_NAME=optparser
+
+	Optparser_prog_name=''
+
+	function _parse_optparser_parameters()
+	{
+		# fetch parameters name
+		local parameters=()
+		for i in "$@"; do
+			shift
+			if [[ $i = -- ]]; then
+				break
+			fi
+			if [[ ! $i =~ ^[^=]+=[^=]+$ ]]; then
+				optparser_error $OPTPARSER_NAME "invalid parameter tyep: $i" fatal
+			fi
+			parameters=("${parameters[@]}" "$i")
+		done
+		# parse start
+		for i in "$@"; do
+			
+		done
+	}
+
+	function optparser_error()
+	{
+		local prog=$(tr [a-z] [A-Z] <<< "$1")
+		local message=$2
+		local error_type=${3:-error}
+		printf "$prog: $error_type: "'%s\n' $message
+		exit 1
+	}
+
+	if [[ $# < 1 ]]; then
+		optparser_error $OPTPARSER_NAME \
+			"$OPTPARSER_NAME your_prog_name [prefix_chars] [prologue] [usage_string] [add_help] [description] [epilog]"
+	fi
+
+	Optparser_prog_name=$1
+	shift
+	for i in "$@"; do
+		case $i in
+			description=*)
+				;;
+		esac
+	done
+	function optparser_setdefault()
+	{
+
+	}
+
+	function optparser_addopt()
+	{
+
+	}
+
+	function optparser_parse()
+	{
+
+	}
+
+	function optparser_DEBUG()
+	{
+
+	}
+
+	# check API
+	# check_callback arg...
+
+	# stop parsing marker --
+
+}
