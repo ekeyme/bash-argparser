@@ -15,7 +15,7 @@ function optparser()
 			if [[ $i = -- ]]; then
 				break
 			fi
-			if [[ ! $i =~ ^[_a-zA-Z][_0-9a-zA-Z]+=[_0-9a-zA-Z]+$ ]]; then
+			if [[ ! $i =~ '^[_a-zA-Z][_0-9a-zA-Z]*=[_0-9a-zA-Z]*$' ]]; then
 				optparser_error $OPTPARSER_NAME "invalid parameter: $i" fatal
 			fi
 			optparser_to_option_name_pair=("${optparser_to_option_name_pair[@]}" "${i/=/ }")
@@ -77,4 +77,41 @@ function optparser()
 
 	# stop parsing marker --
 
+}
+
+function _set2globals()
+{
+    local values
+    local i
+    local _tmp
+    if (( $# < 2 )); then
+        printf 'Expect at least 2 argument, but %d you given.' $# >&2
+        exit 1
+    fi
+    if [[ ! $1 =~ '^[_a-zA-Z][_0-9a-zA-Z]*$' ]]; then
+        printf 'Invalid variable name: %s\n' "$1" >&2
+        exit 1
+    fi
+    local __variable_name__=$1
+    shift
+    for i in "$@"; do
+        _tmp=$( _escaping "$i" )
+        values=("${values[@]}" "$_tmp")
+    done
+    values=("${values[@]:1}")
+    if (( ${#values[@]} == 1 )); then
+        eval $__variable_name__=${values[0]}
+    else
+        eval $__variable_name__=\("${values[@]}"\)
+    fi
+}
+
+function _escaping()
+{
+    local str="$1"
+    str=${str//'\'/'\\'}
+    str=${str//'$'/'\$'}
+    str=${str//'`'/'\`'}
+    str=${str//'"'/'\"'}
+    echo "\"$str\""
 }
