@@ -1,5 +1,9 @@
+OPTPARSER_NAME=optparser
+
+# data structure
+OPTPARSER_NONE=__none___
 # optparser
-Optparser_porg_name=$(basename $0)
+Optparser_prog_name=$(basename $0)
 Optparser_overwrited_usage=false
 Optparser_prefix_chars=-
 Optparser_prologue=''
@@ -8,12 +12,19 @@ Optparser_description=''
 Optparser_epilog=''
 Optparser_add_help=true
 
-Optparser_option_names=()
-
 
 function optparser()
 {
-	OPTPARSER_NAME=optparser
+    # option parameters array
+    Optparser_option_strings=()
+    Optparser_option_to=()
+    Optparser_option_check=()
+    Optparser_option_action=()
+    Optparser_option_default=()
+    Optparser_option_desc=()
+    Optparser_option_metavar=()
+    Optparser_option_required=()
+    Optparser_option_choices=()
 
 	function _parse_parameters()
 	{
@@ -59,7 +70,7 @@ function optparser()
 
 	# initial optparser
 	if (( $# > 0 )); then
-		Optparser_porg_name=$1
+		Optparser_prog_name=$1
 		shift
 		if (( $# > 0 )); then
 			_parse_parameters \
@@ -82,22 +93,62 @@ function optparser()
 
 	function optparser_add_option()
 	{
-		local _pattern='^[0-9a-zA-Z]+$'
-		local opt_name_str=''
+        # fetch option name
+		local _pattern='^[-_0-9a-zA-Z]+$'
+		local _opt_name=''
 		while (( $# > 0 )); do
 			[[ $1 = *=* ]] && break
 			if [[ ! $1 =~ $_pattern ]]; then
 				optparser_error $OPTPARSER_NAME "Invalid option name: $1" error
 			fi
-			opt_name_str="$opt_name_str|$1"
+			_opt_name="$_opt_name|$1"
 			shift
 		done
+        Optparser_option_strings=("${Optparser_option_strings[@]}" "$_opt_name")
+
+        # fetch other option data
+        local _to=''
+        local _check=''
+        local _action=''
+        local _desc=''
+        local _metavar=''
+        local _required=false
+        local _choices=''
+        local _default=''
+        local _nargs=''
+        _parse_parameters \
+            _to=to _check=check _action=action \
+            _desc=desc _metavar=metavar \
+            _default=default _required=required _choices=choices \
+            -- "$@"
+        Optparser_option_to=("${Optparser_option_to[@]}" "$_to")
+        Optparser_option_check=("${Optparser_option_check[@]}" "$_check")
+        Optparser_option_action=("${Optparser_option_action[@]}" "$_action")
+        Optparser_option_default=("${Optparser_option_default[@]}" "$_default")
+        Optparser_option_desc=("${Optparser_option_desc[@]}" "$_desc")
+        Optparser_option_metavar=("${Optparser_option_metavar[@]}" "$_metavar")
+        Optparser_option_required=("${Optparser_option_required[@]}" "$_required")
+        Optparser_option_choices=("${Optparser_option_choices[@]}" "$_choices")
 	}
 
 	function optparser_parse()
 	{
-		echo
+        # add help option here
+        if [[ $Optparser_add_help = true ]]; then
+            optparser_add_option -h --help desc="show this help message and exit"
+        fi
+
 	}
+
+    function _choose_metavar()
+    {
+        :
+    }
+
+    function _choose_to()
+    {
+        :
+    }
 
 	function optparser_DEBUG()
 	{
@@ -107,8 +158,9 @@ function optparser()
 	# check API
 	# check_callback arg...
 
-	# action API (the same with check)
-	# action_callback arg...
+	# action API
+	# action_callback to value option_string option_strings
+    # store|store_const|store_true|store_false|help|?version?
 
 	# stop parsing marker --
 
@@ -132,7 +184,7 @@ function _set2globals()
     local _tmp
     local values=()
     for i in "$@"; do
-        _tmp=$( _escaping "$i" )
+        _tmp=\'${1//"'"/"'\''"}\'
         values=("${values[@]}" "$_tmp") # push to array
     done
 
@@ -141,10 +193,4 @@ function _set2globals()
     else
         eval $__variable__name__=\("${values[@]}"\)
     fi
-}
-
-function _escaping()
-{
-    local str=${1//"'"/"'\''"}
-    echo "'$str'"
 }
