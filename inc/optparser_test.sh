@@ -38,7 +38,7 @@ function test_optparser()
 function test__parse_parameters()
 {
     optparser
-    printf '%s: ' 'parse_parameters should give the right value'
+    printf '%s: ' 'parse_parameters should give the right value when has more than 1 options to parse'
     v='ekeyme
     dsf
     fdsf'\''d
@@ -78,20 +78,86 @@ function test__parse_parameters3()
     fi
 }
 
+function test__parse_parameters4()
+{
+    optparser
+    printf '%s: ' 'parse_parameters should give the right value when has just 1 option to parse'
+    v='ekeyme
+    dsf
+    fdsf'\''d
+
+    sdsf'\'
+    in_parameter=(NAME=name -- name="$v")
+    _parse_parameters "${in_parameter[@]}"
+
+    if [[ $NAME = $v ]]; then
+        echo ok
+    else
+        echo fail
+    fi
+}
+
 function test_optparser_add_option()
 {
     optparser
     printf '%s: ' 'optparser_add_option should give right array to store data'
-
+    local to=(to to1)
+    local check=(check check1)
+    local action=(action action1)
+    local desc=(desc desc1)
+    local metavar=(metavar metavar1)
+    local required=(required required1)
+    local choices=(choices choices1)
+    local default=(default default1)
+    local const=(const const1)
+    local nargs=(nargs nargs1)
     optparser_add_option -n --name \
-        to=to_variable_name \
-        check=check_fn \
-        default=ekeyme \
-        desc='option description msg' \
-        metavar='NAME' \
-        required=true \
-        choices='value1|value2|value3...' \
-        action=callback
+        to=${to[0]} check=${check[0]} action=${action[0]} desc=${desc[0]} \
+        metavar=${metavar[0]} required=${required[0]} choices=${choices[0]} \
+        default=${default[0]} const=${const[0]} nargs=${nargs[0]}
+    optparser_add_option -a --age \
+        to=${to[1]} check=${check[1]} action=${action[1]} desc=${desc[1]} \
+        metavar=${metavar[1]} required=${required[1]} choices=${choices[1]} \
+        default=${default[1]} const=${const[1]} nargs=${nargs[1]}
+
+    if [[ '-a|--age' = ${Optparser_option_strings[1]} ]] && \
+            [[ ${to[1]} = ${Optparser_option_to[1]} ]] && \
+            [[ ${check[1]} = ${Optparser_option_check[1]} ]] && \
+            [[ ${action[1]} = ${Optparser_option_action[1]} ]] && \
+            [[ ${default[1]} = ${Optparser_option_default[1]} ]] && \
+            [[ ${const[1]} = ${Optparser_option_const[1]} ]] && \
+            [[ ${nargs[1]} = ${Optparser_option_nargs[1]} ]] && \
+            [[ ${desc[1]} = ${Optparser_option_desc[1]} ]] && \
+            [[ ${metavar[1]} = ${Optparser_option_metavar[1]} ]] && \
+            [[ ${required[1]} = ${Optparser_option_required[1]} ]] && \
+            [[ ${choices[1]} = ${Optparser_option_choices[1]} ]]; then
+        echo ok
+    else
+        echo fail
+    fi
 }
 
-(test_optparser)
+function test_optparser_add_option1()
+{
+    optparser
+    printf '%s: ' 'optparser_add_option should raise error when const not supply and nargs is 0|?|*'
+
+    if (optparser_add_option -n --name nargs='0'); then
+        echo fail
+    else
+        echo ok
+    fi
+}
+
+function test_optparser_parse()
+{
+    optparser
+    printf '%s: ' 'test_optparser_parse should give the right values of options'
+    optparser_add_option -n --name desc=name default=ekeyme
+    optparser_add_option -b --binary const=true default=false
+    optparser_add_option age default=26
+    optparser_parse -n no_body -a
+
+}
+
+test_optparser_add_option

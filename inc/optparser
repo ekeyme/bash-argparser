@@ -1,7 +1,7 @@
 OPTPARSER_NAME=optparser
 
 # data structure
-OPTPARSER_NONE=__none___
+OPTPARSER_UNSET=__unset___
 # optparser
 Optparser_prog_name=$(basename $0)
 Optparser_overwrited_usage=false
@@ -12,7 +12,6 @@ Optparser_description=''
 Optparser_epilog=''
 Optparser_add_help=true
 
-
 function optparser()
 {
     # option parameters array
@@ -21,10 +20,18 @@ function optparser()
     Optparser_option_check=()
     Optparser_option_action=()
     Optparser_option_default=()
+    Optparser_option_const=()
+    Optparser_option_nargs=()
     Optparser_option_desc=()
     Optparser_option_metavar=()
     Optparser_option_required=()
     Optparser_option_choices=()
+    # option_status 
+    # 0: Positional Parameter(pp) do not show up in $@, so haven't been parsed
+    # 2: pp have been parsed
+    # 1: Optional Parameter(op) haven't been parsed
+    # 3: op have been parsed
+    _Optparser_option_status=()
 
 	function _parse_parameters()
 	{
@@ -64,7 +71,7 @@ function optparser()
 		local message=$2
 		local error_type=$(tr [A-Z] [a-z] <<< "${3:-error}")
 		local no_exit=$4
-		printf "$prog: $error_type: "'%s\n' "$message"
+		printf "$prog: $error_type: "'%s\n' "$message" >&2
 		[[ $no_exit ]] || exit 1
 	}
 
@@ -86,11 +93,6 @@ function optparser()
 	fi
 	# -- initial optparser done
 
-	function optparser_setdefault()
-	{
-		echo
-	}
-
 	function optparser_add_option()
 	{
         # fetch option name
@@ -104,7 +106,7 @@ function optparser()
 			_opt_name="$_opt_name|$1"
 			shift
 		done
-        Optparser_option_strings=("${Optparser_option_strings[@]}" "$_opt_name")
+        Optparser_option_strings=("${Optparser_option_strings[@]}" "${_opt_name#|}")
 
         # fetch other option data
         local _to=''
@@ -114,17 +116,34 @@ function optparser()
         local _metavar=''
         local _required=false
         local _choices=''
-        local _default=''
-        local _nargs=''
+        local _default=$OPTPARSER_UNSET
+        local _const=$OPTPARSER_UNSET
+        local _nargs=$OPTPARSER_UNSET
         _parse_parameters \
             _to=to _check=check _action=action \
-            _desc=desc _metavar=metavar \
+            _desc=desc _metavar=metavar _nargs=nargs _const=const \
             _default=default _required=required _choices=choices \
             -- "$@"
+        # check nargs
+        if [[ $_nargs = $OPTPARSER_UNSET ]]; then
+            if [[ $_const = $OPTPARSER_UNSET ]]; then
+                _nargs=1
+            else
+                _nargs='?'
+            fi
+        else
+            local _pattern='0|\*|\?'
+            if [[ $_const = $OPTPARSER_UNSET ]] && \
+                    [[ $_nargs =~ $_pattern ]]; then
+                optparser_error $OPTPARSER_NAME " optparser_add_option: const values not unset, nargs can not be (0|*|?): $_nargs"
+            fi
+        fi
         Optparser_option_to=("${Optparser_option_to[@]}" "$_to")
         Optparser_option_check=("${Optparser_option_check[@]}" "$_check")
         Optparser_option_action=("${Optparser_option_action[@]}" "$_action")
         Optparser_option_default=("${Optparser_option_default[@]}" "$_default")
+        Optparser_option_const=("${Optparser_option_const[@]}" "$_const")
+        Optparser_option_nargs=("${Optparser_option_nargs[@]}" "$_nargs")
         Optparser_option_desc=("${Optparser_option_desc[@]}" "$_desc")
         Optparser_option_metavar=("${Optparser_option_metavar[@]}" "$_metavar")
         Optparser_option_required=("${Optparser_option_required[@]}" "$_required")
@@ -137,7 +156,6 @@ function optparser()
         if [[ $Optparser_add_help = true ]]; then
             optparser_add_option -h --help desc="show this help message and exit"
         fi
-
 	}
 
     function _choose_metavar()
@@ -152,7 +170,7 @@ function optparser()
 
 	function optparser_DEBUG()
 	{
-		echo
+		:
 	}
 
 	# check API
@@ -160,7 +178,7 @@ function optparser()
 
 	# action API
 	# action_callback to value option_string option_strings
-    # store|store_const|store_true|store_false|help|?version?
+    # store|help|?version?
 
 	# stop parsing marker --
 
@@ -188,9 +206,5 @@ function _set2globals()
         values=("${values[@]}" "$_tmp") # push to array
     done
 
-    if (( ${#values[@]} == 1 )); then
-        eval $__variable__name__="${values[0]}"
-    else
-        eval $__variable__name__=\("${values[@]}"\)
-    fi
+    eval $__variable__name__=\("${values[@]}"\)
 }
