@@ -2,6 +2,15 @@ ARGPARSER_NAME=argparser
 
 # data structure
 ARGPARSER_UNSET=__unset___
+# option_status 
+# 0: Positional Parameter(pp) do not show up in $@, so haven't been parsed
+# 2: pp have been parsed
+# 1: Optional Parameter(op) haven't been parsed
+# 3: op have been parsed
+ARGPARSER_PA_NO_PARSE=0
+ARGPARSER_PA_PARSED=2
+ARGPARSER_OA_NO_PARSE=1
+ARGPARSER_OA_PARSED=3
 # argparser
 Argparser_prog_name=$(basename $0)
 Argparser_overwrited_usage=false
@@ -15,29 +24,29 @@ Argparser_add_help=true
 function argparser()
 {
     # option parameters array
-    Argparser_option_strings=()
-    Argparser_option_to=()
-    Argparser_option_check=()
-    Argparser_option_action=()
-    Argparser_option_default=()
-    Argparser_option_const=()
-    Argparser_option_nargs=()
-    Argparser_option_desc=()
-    Argparser_option_metavar=()
-    Argparser_option_required=()
-    Argparser_option_choices=()
+    Argparser_argument_strings=()
+    Argparser_argument_to=()
+    Argparser_argument_check=()
+    Argparser_argument_action=()
+    Argparser_argument_default=()
+    Argparser_argument_const=()
+    Argparser_argument_nargs=()
+    Argparser_argument_desc=()
+    Argparser_argument_metavar=()
+    Argparser_argument_required=()
+    Argparser_argument_choices=()
     # option_status 
     # 0: Positional Parameter(pp) do not show up in $@, so haven't been parsed
     # 2: pp have been parsed
     # 1: Optional Parameter(op) haven't been parsed
     # 3: op have been parsed
-    _Argparser_option_status=()
+    _Argparser_argument_status=()
 
 	function _parse_parameters()
 	{
 		local i
-		# fetch argparser_to_option_name_pair name
-		local argparser_to_option_name_pair=()
+		# fetch argparser_to_argument_name_pair name
+		local argparser_to_argument_name_pair=()
 		local _pattern='^[_a-zA-Z][_0-9a-zA-Z]*=[_0-9a-zA-Z]*$'
 		for i in "$@"; do
 			shift
@@ -47,13 +56,13 @@ function argparser()
 			if [[ ! $i =~ $_pattern ]]; then
 				argparser_error $ARGPARSER_NAME "invalid parameter: $i" fatal
 			fi
-			argparser_to_option_name_pair=("${argparser_to_option_name_pair[@]}" "${i/=/ }")
+			argparser_to_argument_name_pair=("${argparser_to_argument_name_pair[@]}" "${i/=/ }")
 		done
 		# parse start
 		local _has_get_flag
 		for argv in "$@"; do
 			_has_get_flag=false
-			for i in "${argparser_to_option_name_pair[@]}"; do
+			for i in "${argparser_to_argument_name_pair[@]}"; do
 				read to_name opt_name <<< "$i"
 				if [[ $argv = $opt_name=* ]]; then
 					_set2globals "$to_name" "${argv#*=}"
@@ -94,9 +103,11 @@ function argparser()
 	# -- initial argparser done
 
     #@to-do add exclusive type
-	function argparser_add_option()
+	function argparser_add_arg()
 	{
         # fetch option name
+        local _status=$ARGPARSER_OA_NO_PARSE
+        local _is_positional=false
 		local _pattern='^[-_0-9a-zA-Z]+$'
 		local _opt_name=''
 		while (( $# > 0 )); do
@@ -104,17 +115,24 @@ function argparser()
 			if [[ ! $1 =~ $_pattern ]]; then
 				argparser_error $ARGPARSER_NAME "Invalid option name: $1" error
 			fi
+            if [[ $_is_positional = true ]]; then
+                argparser_error $ARGPARSER_NAME "argparser_add_arg: too many positional argument: $1."
+            fi
+            if _is_positional_argment "$1"; then
+                _is_positional=true
+                _status=$ARGPARSER_PA_NO_PARSE
+            fi
 			_opt_name="$_opt_name|$1"
 			shift
 		done
-        Argparser_option_strings=("${Argparser_option_strings[@]}" "${_opt_name#|}")
+        Argparser_argument_strings=("${Argparser_argument_strings[@]}" "${_opt_name#|}")
 
         # fetch other option data
         local _to=''
         local _check=''
         local _action=''
         local _desc=''
-        local _metavar=''
+        local _metavar=$ARGPARSER_UNSET
         local _required=false
         local _choices=''
         local _default=$ARGPARSER_UNSET
@@ -125,38 +143,98 @@ function argparser()
             _desc=desc _metavar=metavar _nargs=nargs _const=const \
             _default=default _required=required _choices=choices \
             -- "$@"
+        # positional argument not support const/requied
+        if [[ $_is_positional = true  && ! ($_const = $ARGPARSER_UNSET && $_required = false) ]]; then
+            argparser_error $ARGPARSER_NAME "argparser_add_arg: positional argument do not support const/requied option."
+        fi
         # check nargs
         if [[ $_nargs = $ARGPARSER_UNSET ]]; then
-            if [[ $_const = $ARGPARSER_UNSET ]]; then
-                _nargs=1
+            if [[ $_is_positional = true ]]; then
+                # define nargs of positional argument
+                if [[ $_default = $ARGPARSER_UNSET ]]; then
+                    _nargs=1
+                else
+                    _nargs='?'
+                fi
             else
-                _nargs='?'
+                # define nargs of positional argument
+                if [[ $_const = $ARGPARSER_UNSET ]]; then
+                    _nargs=1
+                else
+                    _nargs='?'
+                fi
             fi
         else
             local _pattern='0|\*|\?'
             if [[ $_const = $ARGPARSER_UNSET ]] && \
                     [[ $_nargs =~ $_pattern ]]; then
-                argparser_error $ARGPARSER_NAME " argparser_add_option: const values not unset, nargs can not be (0|*|?): $_nargs"
+                argparser_error $ARGPARSER_NAME " argparser_add_arg: const values not unset, nargs can not be (0|*|?): $_nargs"
             fi
         fi
-        Argparser_option_to=("${Argparser_option_to[@]}" "$_to")
-        Argparser_option_check=("${Argparser_option_check[@]}" "$_check")
-        Argparser_option_action=("${Argparser_option_action[@]}" "$_action")
-        Argparser_option_default=("${Argparser_option_default[@]}" "$_default")
-        Argparser_option_const=("${Argparser_option_const[@]}" "$_const")
-        Argparser_option_nargs=("${Argparser_option_nargs[@]}" "$_nargs")
-        Argparser_option_desc=("${Argparser_option_desc[@]}" "$_desc")
-        Argparser_option_metavar=("${Argparser_option_metavar[@]}" "$_metavar")
-        Argparser_option_required=("${Argparser_option_required[@]}" "$_required")
-        Argparser_option_choices=("${Argparser_option_choices[@]}" "$_choices")
+        Argparser_argument_to=("${Argparser_argument_to[@]}" "$_to")
+        Argparser_argument_check=("${Argparser_argument_check[@]}" "$_check")
+        Argparser_argument_action=("${Argparser_argument_action[@]}" "$_action")
+        Argparser_argument_default=("${Argparser_argument_default[@]}" "$_default")
+        Argparser_argument_const=("${Argparser_argument_const[@]}" "$_const")
+        Argparser_argument_nargs=("${Argparser_argument_nargs[@]}" "$_nargs")
+        Argparser_argument_desc=("${Argparser_argument_desc[@]}" "$_desc")
+        Argparser_argument_metavar=("${Argparser_argument_metavar[@]}" "$_metavar")
+        Argparser_argument_required=("${Argparser_argument_required[@]}" "$_required")
+        Argparser_argument_choices=("${Argparser_argument_choices[@]}" "$_choices")
+        _Argparser_argument_status=("${_Argparser_argument_status[@]}" "$_status")
 	}
+
+    function _is_argumental_argment()
+    {
+        [[ $Argparser_prefix_chars =~ ${1:0:1} ]]
+    }
+
+    function _is_positional_argment()
+    {
+        [[ ! $Argparser_prefix_chars =~ ${1:0:1} ]]
+    }
 
 	function argparser_parse()
 	{
         # add help option here
         if [[ $Argparser_add_help = true ]]; then
-            argparser_add_option -h --help desc="show this help message and exit"
+            argparser_add_arg -h --help desc="show this help message and exit"
         fi
+        local to
+        local check
+        local action
+        local desc
+        local metavar
+        local required
+        local choices
+        local default
+        local const
+        local nargs
+        local arg_status
+        local argument_strings
+        local _key
+        # first parsing
+        for ((_key=0; _key < ${#_Argparser_argument_status[@]}; _key++)); do
+            arg_status=${_Argparser_argument_status[$_key]}
+            if [[ $arg_status = $ARGPARSER_PA_PARSED && $arg_status = $ARGPARSER_OA_PARSED ]]; then
+                continue
+            fi
+            arg_string="${Argparser_argument_strings[$_key]}"
+            to="${Argparser_argument_to[$_key]}"
+            check="${Argparser_argument_check[$_key]}"
+            action="${Argparser_argument_action[$_key]}"
+            default="${Argparser_argument_default[$_key]}"
+            const="${Argparser_argument_const[$_key]}" 
+            args="${Argparser_argument_nargs[$_key]}"
+            desc="${Argparser_argument_desc[$_key]}"
+            metavar="${Argparser_argument_metavar[$_key]}"
+            required="${Argparser_argument_required[$_key]}"
+            choices="${Argparser_argument_choices[$_key]}"
+            # choose to
+            Argparser_argument_to[$_key]=$(_choose_to "$to" "$arg_string" )
+            # choose metavar
+            Argparser_argument_metavar[$_key]=$(_choose_metavar "$metavar" "$to" "$arg_string")
+        done
 	}
 
     function _choose_metavar()
@@ -164,6 +242,7 @@ function argparser()
         :
     }
 
+    # $to $arg_string
     function _choose_to()
     {
         :

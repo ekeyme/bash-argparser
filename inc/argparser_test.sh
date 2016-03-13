@@ -97,10 +97,10 @@ function test__parse_parameters4()
     fi
 }
 
-function test_argparser_add_option()
+function test_argparser_add_arg()
 {
     argparser
-    printf '%s: ' 'argparser_add_option should give right array to store data'
+    printf '%s: ' 'argparser_add_arg should give right array to store data'
     local to=(to to1)
     local check=(check check1)
     local action=(action action1)
@@ -111,11 +111,11 @@ function test_argparser_add_option()
     local default=(default default1)
     local const=(const const1)
     local nargs=(nargs nargs1)
-    argparser_add_option -n --name \
+    argparser_add_arg -n --name \
         to=${to[0]} check=${check[0]} action=${action[0]} desc=${desc[0]} \
         metavar=${metavar[0]} required=${required[0]} choices=${choices[0]} \
         default=${default[0]} const=${const[0]} nargs=${nargs[0]}
-    argparser_add_option -a --age \
+    argparser_add_arg -a --age \
         to=${to[1]} check=${check[1]} action=${action[1]} desc=${desc[1]} \
         metavar=${metavar[1]} required=${required[1]} choices=${choices[1]} \
         default=${default[1]} const=${const[1]} nargs=${nargs[1]}
@@ -137,24 +137,24 @@ function test_argparser_add_option()
     fi
 }
 
-function test_argparser_add_option1()
+function test_argparser_add_arg1()
 {
     argparser
-    printf '%s: ' 'argparser_add_option should raise error when const not supply and nargs is 0|?|*'
+    printf '%s: ' 'argparser_add_arg should raise error when const not supply and nargs is 0|?|*'
 
-    if (argparser_add_option -n --name nargs='0'); then
+    if (argparser_add_arg -n --name nargs='0'); then
         echo fail
     else
         echo ok
     fi
 }
 
-function test_argparser_add_option2()
+function test_argparser_add_arg2()
 {
     argparser
-    printf '%s: ' 'argparser_add_option should give the right nargs for position argment'
-    argparser_add_option name default='has default'
-    argparser_add_option age
+    printf '%s: ' 'argparser_add_arg should give the right nargs for position argment'
+    argparser_add_arg name default='has default'
+    argparser_add_arg age
     set -- "${Argparser_option_nargs[@]}"
     if [[ $1 = '?' && $2 = 1 ]]; then
         echo ok
@@ -163,23 +163,23 @@ function test_argparser_add_option2()
     fi
 }
 
-function test_argparser_add_option3()
+function test_argparser_add_arg3()
 {
     argparser
-    printf '%s: ' 'argparser_add_option should not support const and required option for position argment'
-    if (argparser_add_option name const='this should not supply') && \
-            (argparser_add_option age required=true); then
+    printf '%s: ' 'argparser_add_arg should not support const/required option for position argment'
+    if (argparser_add_arg name const='this should not supply') && \
+            (argparser_add_arg age required=true); then
         echo fail
     else
         echo ok
     fi
 }
 
-function test_argparser_add_option4()
+function test_argparser_add_arg4()
 {
     argparser
-    printf '%s: ' 'argparser_add_option should not support 1+ position argment'
-    if (argparser_add_option name name2); then
+    printf '%s: ' 'argparser_add_arg should not support >1 position argments'
+    if (argparser_add_arg name name2); then
         echo fail
     else
         echo ok
@@ -189,14 +189,15 @@ function test_argparser_add_option4()
 function test_argparser_parse()
 {
     argparser
-    printf '%s: ' 'test_argparser_parse should give the right values of options'
-    argparser_add_option -n --name desc=name default=ekeyme
-    argparser_add_option -b --binary const=true default=false
-    argparser_add_option age default=26
-    argparser_parse -n no_body -a
+    printf '%s: ' 'argparser_parse should give the right values of options'
+    argparser_add_arg --name desc=name default=ekeyme
+    argparser_add_arg -b --binary const=true default=false
+    argparser_add_arg age default=26
+    argparser_parse --name no_body -b true
 
 }
 
-(test_argparser_add_option2)
-(test_argparser_add_option3)
-(test_argparser_add_option4)
+(test_argparser_add_arg2)
+(test_argparser_add_arg3)
+(test_argparser_add_arg4)
+(test_argparser_parse; echo ${Argparser_argument_to[@]})
