@@ -13,7 +13,7 @@ ARGPARSER_OA_NO_PARSE=1
 ARGPARSER_OA_PARSED=3
 # argparser
 Argparser_prog_name=$(basename $0)
-Argparser_overwrited_usage=false
+Argparser_overwrited_help=false
 Argparser_prefix_chars=-
 Argparser_prologue=''
 Argparser_usage_string=''
@@ -85,7 +85,7 @@ function argparser()
 		shift
 		if (( $# > 0 )); then
 			_parse_parameters \
-				Argparser_overwrited_usage=overwrited_usage \
+				Argparser_overwrited_help=overwrited_help \
 				Argparser_prologue=prologue \
 				Argparser_usage_string=usage_string \
 				Argparser_description=description \
@@ -125,7 +125,7 @@ function argparser()
         # fetch other option data
         local _to=''
         local _check=''
-        local _action=''
+        local _action=argparser_store
         local _desc=''
         local _metavar=$ARGPARSER_UNSET
         local _required=false
@@ -193,7 +193,7 @@ function argparser()
 	{
         # add help option here
         if [[ $Argparser_add_help = true ]]; then
-            argparser_add_arg -h --help desc="show this help message and exit"
+            argparser_add_arg -h --help desc="show this help message and exit" action=argparse_help
         fi
         local to
         local check
@@ -231,6 +231,50 @@ function argparser()
             Argparser_argument_metavar[$_key]=$(_choose_metavar "$metavar" "$to" "$arg_string")
         done
 	}
+
+    # format help string, print it and exit
+    function argparse_help()
+    {
+        :
+    }
+
+    function _format_usge()
+    {
+        local _key arg_status optional_string is_required
+        # optional arguments
+        for ((_key=0; _key < ${#_argument_status[@]}; _key++)); do
+            arg_status=${_argument_status[$_key]}
+            if [[ $arg_status = $ARGPARSER_PA_PARSED || $arg_status = $ARGPARSER_PA_NO_PARSE ]]; then
+                continue
+            fi
+            optional_string=$(_choose_shortest_optional_string "${Argparser_argument_strings[$_key]}")
+            is_required=${Argparser_argument_required[$_key]}
+            if [[ $is_required = true ]]; then
+                optional_string="[$optional_string]"
+            fi
+        done
+    }
+
+    function _choose_shortest_optional_string()
+    {
+        local optional_strings=(${1//'|'/ })
+        local shortest_one
+        set -- "${optional_strings[@]}"
+        shortest_one=$1
+        shift
+        while (($# > 0)); do
+            if ((${#shortest_one} > ${#1})); then
+                shortest_one=$1
+            fi
+            shift
+        done
+        echo "$shortest_one"
+    }
+
+    function argparser_store()
+    {
+        :
+    }
 
     function _choose_metavar()
     {
