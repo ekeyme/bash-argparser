@@ -153,9 +153,9 @@ function test_argparser_add_arg2()
 {
     argparser
     printf '%s: ' 'argparser_add_arg should give the right nargs for position argment'
-    argparser_add_arg name default='has default'
-    argparser_add_arg age
-    set -- "${Argparser_option_nargs[@]}"
+    argparser_add_arg name default='has default' 2>/dev/null
+    argparser_add_arg age 2>/dev/null
+    set -- "${Argparser_argument_nargs[@]}"
     if [[ $1 = '?' && $2 = 1 ]]; then
         echo ok
     else
@@ -167,8 +167,8 @@ function test_argparser_add_arg3()
 {
     argparser
     printf '%s: ' 'argparser_add_arg should not support const/required option for position argment'
-    if (argparser_add_arg name const='this should not supply') && \
-            (argparser_add_arg age required=true); then
+    if (argparser_add_arg name const='this should not supply'  2>/dev/null) && \
+            (argparser_add_arg age required=true  2>/dev/null); then
         echo fail
     else
         echo ok
@@ -179,7 +179,7 @@ function test_argparser_add_arg4()
 {
     argparser
     printf '%s: ' 'argparser_add_arg should not support >1 position argments'
-    if (argparser_add_arg name name2); then
+    if (argparser_add_arg name name2 2>/dev/null); then
         echo fail
     else
         echo ok
@@ -191,13 +191,18 @@ function test_argparser_parse()
     argparser
     printf '%s: ' 'argparser_parse should give the right values of options'
     argparser_add_arg --name desc=name default=ekeyme
-    argparser_add_arg -b --binary const=true default=false
+    argparser_add_arg -b --binary to=binary_name const=true default=false
     argparser_add_arg age default=26
     argparser_parse --name no_body -b true
 
+    if [[ $name = 'no_body' && $binary_name = 'true' ]]; then
+        echo ok
+    else
+        echo fail
+    fi
 }
 
 (test_argparser_add_arg2)
 (test_argparser_add_arg3)
 (test_argparser_add_arg4)
-(test_argparser_parse; echo ${Argparser_argument_to[@]})
+(test_argparser_parse)

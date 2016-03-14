@@ -35,12 +35,7 @@ function argparser()
     Argparser_argument_metavar=()
     Argparser_argument_required=()
     Argparser_argument_choices=()
-    # option_status 
-    # 0: Positional Parameter(pp) do not show up in $@, so haven't been parsed
-    # 2: pp have been parsed
-    # 1: Optional Parameter(op) haven't been parsed
-    # 3: op have been parsed
-    _Argparser_argument_status=()
+    _argument_status=()
 
 	function _parse_parameters()
 	{
@@ -181,7 +176,7 @@ function argparser()
         Argparser_argument_metavar=("${Argparser_argument_metavar[@]}" "$_metavar")
         Argparser_argument_required=("${Argparser_argument_required[@]}" "$_required")
         Argparser_argument_choices=("${Argparser_argument_choices[@]}" "$_choices")
-        _Argparser_argument_status=("${_Argparser_argument_status[@]}" "$_status")
+        _argument_status=("${_argument_status[@]}" "$_status")
 	}
 
     function _is_argumental_argment()
@@ -214,8 +209,8 @@ function argparser()
         local argument_strings
         local _key
         # first parsing
-        for ((_key=0; _key < ${#_Argparser_argument_status[@]}; _key++)); do
-            arg_status=${_Argparser_argument_status[$_key]}
+        for ((_key=0; _key < ${#_argument_status[@]}; _key++)); do
+            arg_status=${_argument_status[$_key]}
             if [[ $arg_status = $ARGPARSER_PA_PARSED && $arg_status = $ARGPARSER_OA_PARSED ]]; then
                 continue
             fi
