@@ -153,10 +153,10 @@ function test_argparser_add_arg2()
 {
     argparser
     printf '%s: ' 'argparser_add_arg should give the right nargs for position argment'
-    argparser_add_arg name default='has default' 2>/dev/null
-    argparser_add_arg age 2>/dev/null
+    argparser_add_arg name default='has default'
+    argparser_add_arg age
     set -- "${Argparser_argument_nargs[@]}"
-    if [[ $1 = '?' && $2 = 1 ]]; then
+    if [[ $2 = '?' && $3 = 1 ]]; then
         echo ok
     else
         echo fail
@@ -167,8 +167,8 @@ function test_argparser_add_arg3()
 {
     argparser
     printf '%s: ' 'argparser_add_arg should not support const/required option for position argment'
-    if (argparser_add_arg name const='this should not supply'  2>/dev/null) && \
-            (argparser_add_arg age required=true  2>/dev/null); then
+    if (argparser_add_arg name const='this should not supply' ) && \
+            (argparser_add_arg age required=true ); then
         echo fail
     else
         echo ok
@@ -179,7 +179,7 @@ function test_argparser_add_arg4()
 {
     argparser
     printf '%s: ' 'argparser_add_arg should not support >1 position argments'
-    if (argparser_add_arg name name2 2>/dev/null); then
+    if (argparser_add_arg name name2); then
         echo fail
     else
         echo ok

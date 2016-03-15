@@ -35,7 +35,8 @@ function argparser()
     Argparser_argument_metavar=()
     Argparser_argument_required=()
     Argparser_argument_choices=()
-    _argument_status=()
+    Argparser_du_hyphen_args=()
+    _Argparser_argument_status=()
 
 	function _parse_parameters()
 	{
@@ -78,24 +79,6 @@ function argparser()
 		printf "$prog: $error_type: "'%s\n' "$message" >&2
 		[[ $no_exit ]] || exit 1
 	}
-
-	# initial argparser
-	if (( $# > 0 )); then
-		Argparser_prog_name=$1
-		shift
-		if (( $# > 0 )); then
-			_parse_parameters \
-				Argparser_overwrited_help=overwrited_help \
-				Argparser_prologue=prologue \
-				Argparser_usage_string=usage_string \
-				Argparser_description=description \
-				Argparser_epilog=epilog \
-				Argparser_prefix_chars=prefix_chars \
-				Argparser_add_help=add_help \
-				-- "$@"
-		fi
-	fi
-	# -- initial argparser done
 
     #@to-do add exclusive type
 	function argparser_add_arg()
@@ -176,10 +159,10 @@ function argparser()
         Argparser_argument_metavar=("${Argparser_argument_metavar[@]}" "$_metavar")
         Argparser_argument_required=("${Argparser_argument_required[@]}" "$_required")
         Argparser_argument_choices=("${Argparser_argument_choices[@]}" "$_choices")
-        _argument_status=("${_argument_status[@]}" "$_status")
+        _Argparser_argument_status=("${_Argparser_argument_status[@]}" "$_status")
 	}
 
-    function _is_argumental_argment()
+    function _is_optional_argment()
     {
         [[ $Argparser_prefix_chars =~ ${1:0:1} ]]
     }
@@ -191,10 +174,6 @@ function argparser()
 
 	function argparser_parse()
 	{
-        # add help option here
-        if [[ $Argparser_add_help = true ]]; then
-            argparser_add_arg -h --help desc="show this help message and exit" action=argparse_help
-        fi
         local to
         local check
         local action
@@ -208,29 +187,109 @@ function argparser()
         local arg_status
         local argument_strings
         local _key
-        # first parsing
-        for ((_key=0; _key < ${#_argument_status[@]}; _key++)); do
-            arg_status=${_argument_status[$_key]}
-            if [[ $arg_status = $ARGPARSER_PA_PARSED && $arg_status = $ARGPARSER_OA_PARSED ]]; then
-                continue
+        # find hyphen args
+        for ((_key=1; _key <= $#; _key++)); do
+            _cl_arg=${@:$_key:1}
+            if [[ $_cl_arg = '--' ]]; then
+                break
             fi
-            arg_string="${Argparser_argument_strings[$_key]}"
-            to="${Argparser_argument_to[$_key]}"
-            check="${Argparser_argument_check[$_key]}"
-            action="${Argparser_argument_action[$_key]}"
-            default="${Argparser_argument_default[$_key]}"
-            const="${Argparser_argument_const[$_key]}" 
-            args="${Argparser_argument_nargs[$_key]}"
-            desc="${Argparser_argument_desc[$_key]}"
-            metavar="${Argparser_argument_metavar[$_key]}"
-            required="${Argparser_argument_required[$_key]}"
-            choices="${Argparser_argument_choices[$_key]}"
-            # choose to
-            Argparser_argument_to[$_key]=$(_choose_to "$to" "$arg_string" )
-            # choose metavar
-            Argparser_argument_metavar[$_key]=$(_choose_metavar "$metavar" "$to" "$arg_string")
+        done
+        Argparser_du_hyphen_args=("${@:$(($_key} + 1))")
+        set -- "${@:1:$(($_key - 1))}"
+        # scanning command-line arguments and cut the last optional argument and its arg_value
+        local last_cl_args_to_last_optional
+        local _cl_arg
+        for ((_key=$#; _key > 0 ; _key--)); do
+            _cl_arg=${@:$_key:1}
+            if _is_optional_argment "$_cl_arg"; then
+                break
+            fi
+        done
+        last_cl_args_to_last_optional=("${@:$_key}")
+        set -- "${@:1:$(($_key - 1))}"
+
+        # first parsing optional arguments
+        local un_parsed_cl_args=()
+        while (($# > 0)); do
+            if _is_optional_argment "$1"; then
+                if _is_long_option "$1"; then
+                    shift_num=$(_parse_long_option "$@")
+                    shift $shift_num
+                else
+                    shift_num=$(_parse_short_option "$@")
+                    shift $shift_num
+                fi
+            else
+                un_parsed_cl_args=("${un_parsed_cl_args[@]}", "$1")
+                shift
+            fi
         done
 	}
+
+    # echo shift_num
+    function _parse_long_option()
+    {
+        local shift_num=0
+        local command_line_arg=$1
+        local sticking_value=$ARGPARSER_UNSET
+        shift
+        ((shift_num++))
+
+        if [[ $command_line_arg = *=* ]]; then
+            sticking_value=${command_line_arg#*=}
+            command_line_arg=${command_line_arg%%=*}
+        fi
+        local _key _option_pattern
+        for ((_key=0; _key < ${#_Argparser_argument_status[@]}; _key++)); do
+            arg_status=${_Argparser_argument_status[$_key]}
+            _option_pattern='^'${Argparser_argument_strings[$_key]}'$'
+            if [[ $arg_status = $ARGPARSER_OA_NO_PARSE && \
+                    $command_line_arg =~ $_option_pattern ]]; then
+                nargs="${Argparser_argument_nargs[$_key]}"
+                # ...
+                # get vlues??
+            fi
+        done
+
+        
+        for ((_key=0; _key < ${#_Argparser_argument_status[@]}; _key++)); do
+            arg_status=${_Argparser_argument_status[$_key]}
+            if [[ $arg_status = $ARGPARSER_OA_NO_PARSE ]]; then
+                arg_string="${Argparser_argument_strings[$_key]}"
+                to="${Argparser_argument_to[$_key]}"
+                check="${Argparser_argument_check[$_key]}"
+                action="${Argparser_argument_action[$_key]}"
+                default="${Argparser_argument_default[$_key]}"
+                const="${Argparser_argument_const[$_key]}" 
+                desc="${Argparser_argument_desc[$_key]}"
+                metavar="${Argparser_argument_metavar[$_key]}"
+                required="${Argparser_argument_required[$_key]}"
+                choices="${Argparser_argument_choices[$_key]}"
+                # choose to
+                Argparser_argument_to[$_key]=$(_choose_to "$to" "$arg_string")
+                while (($# > 0)); do
+                    if _is_optional_argment "$1"; then
+                        if _is_long_option "$1"; then
+                            :
+                        else
+                            :
+                        fi
+                    fi
+                done
+            fi
+        done
+    }
+
+    # echo shift_num
+    function _parse_short_option()
+    {
+        :
+    }
+
+    function _is_long_option()
+    {
+        :
+    }
 
     # format help string, print it and exit
     function argparse_help()
@@ -240,10 +299,12 @@ function argparser()
 
     function _format_usge()
     {
+        # choose metavar
+        Argparser_argument_metavar[$_key]=$(_choose_metavar "$metavar" "$to" "$arg_string")
         local _key arg_status optional_string is_required
         # optional arguments
-        for ((_key=0; _key < ${#_argument_status[@]}; _key++)); do
-            arg_status=${_argument_status[$_key]}
+        for ((_key=0; _key < ${#_Argparser_argument_status[@]}; _key++)); do
+            arg_status=${_Argparser_argument_status[$_key]}
             if [[ $arg_status = $ARGPARSER_PA_PARSED || $arg_status = $ARGPARSER_PA_NO_PARSE ]]; then
                 continue
             fi
@@ -301,6 +362,27 @@ function argparser()
 
 	# stop parsing marker --
 
+    # initial argparser
+    if (( $# > 0 )); then
+        Argparser_prog_name=$1
+        shift
+        if (( $# > 0 )); then
+            _parse_parameters \
+                Argparser_overwrited_help=overwrited_help \
+                Argparser_prologue=prologue \
+                Argparser_usage_string=usage_string \
+                Argparser_description=description \
+                Argparser_epilog=epilog \
+                Argparser_prefix_chars=prefix_chars \
+                Argparser_add_help=add_help \
+                -- "$@"
+        fi
+    fi
+    # add help option here
+    if [[ $Argparser_add_help = true ]]; then
+        argparser_add_arg -h --help desc="show this help message and exit" action=argparse_help
+    fi
+    # -- initial argparser done
 }
 
 # dynamically set $variable_name($1)=$values($2...) to globals scope
