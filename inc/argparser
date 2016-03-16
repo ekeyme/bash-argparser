@@ -227,6 +227,7 @@ function argparser()
 	}
 
     # echo shift_num
+    # used by argparser_parse
     function _parse_long_option()
     {
         local shift_num=0
@@ -239,20 +240,51 @@ function argparser()
             sticking_value=${command_line_arg#*=}
             command_line_arg=${command_line_arg%%=*}
         fi
-        local _key _option_pattern
-        for ((_key=0; _key < ${#_Argparser_argument_status[@]}; _key++)); do
-            arg_status=${_Argparser_argument_status[$_key]}
-            _option_pattern='^'${Argparser_argument_strings[$_key]}'$'
-            if [[ $arg_status = $ARGPARSER_OA_NO_PARSE && \
-                    $command_line_arg =~ $_option_pattern ]]; then
-                nargs="${Argparser_argument_nargs[$_key]}"
-                # ...
-                # get vlues??
+        local key=$(_get_argparser_arg_key "$command_line_arg" $ARGPARSER_OA_NO_PARSE)
+        if [[ $key = '' ]]; then
+            argparser_error $ARGPARSER_NAME "argparser_parse: unknown argument: $command_line_arg"
+        fi
+        local nargs="${Argparser_argument_nargs[$key]}"
+        local arg_string="${Argparser_argument_strings[$key]}"
+        local to="${Argparser_argument_to[$key]}"
+        local check="${Argparser_argument_check[$key]}"
+        local action="${Argparser_argument_action[$key]}"
+        local default="${Argparser_argument_default[$key]}"
+        local const="${Argparser_argument_const[$key]}"
+        local choices="${Argparser_argument_choices[$key]}"
+        if [[ $nargs = '?']]; then
+            local _v=$1
+            if _is_optional_argment $_v; then
+                :
+            else
+                if [[ $choices != '' ]]; then
+                    if ! _is_in_choices "$_v" "$choices";
+                        argparser_error $Argparser_prog_name "${Argparser_argument_strings[$key]/'|'/ }: $_v not in $choices"
+                    fi
+                fi
+                if [[ $check != '' ]]; then
+                    $check "$_v"
+                fi
+                $action $(_choose_to "$to" "$arg_string") "$_v" "$command_line_arg" "$arg_string"
+                ((shift_num++))
             fi
-        done
+        elif [[ $nargs = '*' ]]; then
+            :
+        elif [[ $nargs = '+' ]]; then
+            :
+        elif [[ $nargs = 'remain' ]]; then
+            :
+        elif (($nargs = 0)); then
+            :
+        elif (($nargs > 0)); then
+            :
+        else
+            argparser_error $ARGPARSER_NAME "argparser_parse: ${Argparser_argument_strings[$key]/'|'/ }: unknown nargs: $nargs"
+        fi
+        _Argparser_argument_status[$key]=$ARGPARSER_OA_PARSED
 
         
-        for ((_key=0; _key < ${#_Argparser_argument_status[@]}; _key++)); do
+        for ((key=0; _key < ${#_Argparser_argument_status[@]}; _key++)); do
             arg_status=${_Argparser_argument_status[$_key]}
             if [[ $arg_status = $ARGPARSER_OA_NO_PARSE ]]; then
                 arg_string="${Argparser_argument_strings[$_key]}"
@@ -282,6 +314,35 @@ function argparser()
 
     # echo shift_num
     function _parse_short_option()
+    {
+        :
+    }
+
+    # get the command-line-arg matching argparser index(key)
+    # - $1: command line argument string
+    # - $2...: status from _Argparser_argument_status
+    function _get_argparser_arg_key()
+    {
+        local cl_arg=$1
+        shift
+        local status=$*
+        if [[ $status = '' ]]; then
+            status=$ARGPARSER_PA_PARSED$ARGPARSER_OA_PARSED$ARGPARSER_PA_NO_PARSE$ARGPARSER_OA_NO_PARSE
+        fi
+        local _key _option_pattern
+        for ((_key=0; _key < ${#_Argparser_argument_status[@]}; _key++)); do
+            if [[ ${_Argparser_argument_status[$_key]} = [$status] ]]; then
+                _option_pattern='^'${Argparser_argument_strings[$_key]}'$'
+                if [[ $cl_arg =~ $_option_pattern ]]; then
+                    echo $_key
+                    return
+                fi
+            fi
+        done
+    }
+
+    # check if $1 is in choices($2)
+    function _is_in_choices()
     {
         :
     }
