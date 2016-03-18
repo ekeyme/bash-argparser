@@ -258,13 +258,13 @@ function argparser()
         local nargs="${Argparser_argument_nargs[$key]}"
         local _n
         if [[ $sticking_value = $ARGPARSER_UNSET ]]; then
-            _n=$(_get_cl_arg_values $nargs "$@")
+            _n=$(_get_cl_arg_values $nargs "$command_line_arg" "$@")
             ((shift_num+=$_n))
         else
             if [[ $nargs = 0 ]]; then
                 argparser_error $Argparser_prog_name "$command_line_arg not need values: $command_line_arg=$sticking_value"
             fi
-            _n=$(_get_cl_arg_values $nargs "$sticking_value" "$@")
+            _n=$(_get_cl_arg_values $nargs "$command_line_arg" "$sticking_value" "$@")
             (( shift_num+=($_n-1) ))
         fi
         # set the values to $@
@@ -329,14 +329,17 @@ function argparser()
 
     # get values from command line arguments by nargs
     # - $1: nargs
-    # - $2...: command line args
+    # - $2: command line otpion string for error output
+    # - $3...: command line args
     # - echo: num of gotten values
     # set to ___values__
+    # here--
     function _get_cl_arg_values()
     {
         ___values__=()
         local nargs=$1
-        shift
+        local cl_option_string=$2
+        shift 2
         local shift_num=0
         if [[ $nargs = '?']]; then
             if _is_positional_argment "$1"; then
@@ -367,20 +370,18 @@ function argparser()
             ___values__=("$@")
             shift_num=$#
         elif (($nargs > 0)); then
-            local i=0
             while (($# > 0)); do
                 if _is_positional_argment "$1"; then
                     ___values__=("${___values__[@]}" "$1")
                     shift
-                    ((i++))
-                    if (($i == $nargs)); then
+                    ((shift_num++))
+                    if (($shift_num == $nargs)); then
                         break
                     fi
                 else
                     break
                 fi
             done
-            ((shift_num+=$i))
         else
             argparser_error $ARGPARSER_NAME "unknown nargs: $nargs." fatal
         fi
@@ -444,11 +445,12 @@ function argparser()
     # - $3: argparser argument string
     # - $4:  reserved
     # - $5:  reserved
-    # - $6...: values
+    # - $6:  reserved
+    # - $7...: values
     function argparser_store()
     {
         local to=$1
-        shift 5
+        shift 6
         _set2globals $to "$@"
     }
 
