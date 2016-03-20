@@ -1,5 +1,9 @@
 source ./argparser
 
+function action_callback() { :; }
+function check_callback() { :; }
+function callback() { :; }
+
 function test_argparser()
 {
     printf '%s: ' 'argparser should store the right value to globals varibles'
@@ -101,9 +105,9 @@ function test_argparser_add_arg()
 {
     argparser
     printf '%s: ' 'argparser_add_arg should give right array to store data'
-    local to=(to to1)
-    local check=(check check1)
-    local action=(action action1)
+    local dest=(dest dest1)
+    local check=(check_callback check_callback)
+    local action=(action_callback action_callback)
     local desc=(desc desc1)
     local metavar=(metavar metavar1)
     local required=(required required1)
@@ -112,16 +116,16 @@ function test_argparser_add_arg()
     local const=(const const1)
     local nargs=(nargs nargs1)
     argparser_add_arg -n --name \
-        to=${to[0]} check=${check[0]} action=${action[0]} desc=${desc[0]} \
+        dest=${dest[0]} check=${check[0]} action=${action[0]} desc=${desc[0]} \
         metavar=${metavar[0]} required=${required[0]} choices=${choices[0]} \
         default=${default[0]} const=${const[0]} nargs=${nargs[0]}
     argparser_add_arg -a --age \
-        to=${to[1]} check=${check[1]} action=${action[1]} desc=${desc[1]} \
+        dest=${dest[1]} check=${check[1]} action=${action[1]} desc=${desc[1]} \
         metavar=${metavar[1]} required=${required[1]} choices=${choices[1]} \
         default=${default[1]} const=${const[1]} nargs=${nargs[1]}
 
     if [[ '-a|--age' = ${Argparser_option_strings[1]} ]] && \
-            [[ ${to[1]} = ${Argparser_option_to[1]} ]] && \
+            [[ ${dest[1]} = ${Argparser_option_dest[1]} ]] && \
             [[ ${check[1]} = ${Argparser_option_check[1]} ]] && \
             [[ ${action[1]} = ${Argparser_option_action[1]} ]] && \
             [[ ${default[1]} = ${Argparser_option_default[1]} ]] && \
@@ -190,11 +194,10 @@ function test_argparser_parse()
 {
     argparser
     printf '%s: ' 'argparser_parse should give the right values of options'
-    argparser_add_arg --name desc=name default=ekeyme
-    argparser_add_arg -b --binary to=binary_name const=true default=false
+    argparser_add_arg --name dest=name default=ekeyme
+    argparser_add_arg -b --binary dest=binary_name const=true default=false
     argparser_add_arg age default=26
     argparser_parse --name no_body -b true
-
     if [[ $name = 'no_body' && $binary_name = 'true' ]]; then
         echo ok
     else
