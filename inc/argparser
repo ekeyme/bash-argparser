@@ -3,7 +3,7 @@ ARGPARSER_NAME=argparser
 # data structure
 ARGPARSER_UNSET=__unset___
 ___values__=$ARGPARSER_UNSET
-___shift__num__=0
+___shift__num__=1
 # option_status 
 # 0: Positional Parameter(pp) do not show up in $@, so haven't been parsed
 # 2: pp have been parsed
@@ -37,8 +37,12 @@ function argparser()
     Argparser_argument_metavar=()
     Argparser_argument_required=()
     Argparser_argument_choices=()
-    Argparser_du_hyphen_args=()
+    Argparser_argument_pos=()
     _Argparser_argument_status=()
+    # keys of positional argument with pos
+    _Argparser_argument_with_pos_keys=()
+    # arguments after `--`
+    Argparser_du_hyphen_args=()
 
 	function _parse_parameters()
 	{
@@ -82,11 +86,9 @@ function argparser()
 		[[ $no_exit ]] || exit 1
 	}
 
-    #@to-do add exclusive type
 	function argparser_add_arg()
 	{
         # fetch option name
-        local _status=$ARGPARSER_OA_NO_PARSE
         local _is_positional=false
 		local _pattern='^[-_0-9a-zA-Z]+$'
 		local optional_string=''
@@ -100,7 +102,6 @@ function argparser()
             fi
             if _is_positional_argment "$1"; then
                 _is_positional=true
-                _status=$ARGPARSER_PA_NO_PARSE
             fi
 			optional_string="$optional_string|$1"
 			shift
@@ -119,21 +120,34 @@ function argparser()
         local default=$ARGPARSER_UNSET
         local const=$ARGPARSER_UNSET
         local nargs=$ARGPARSER_UNSET
+        local pos=''
         _parse_parameters \
             dest=dest check=check action=action \
             desc=desc metavar=metavar nargs=nargs const=const \
             default=default required=required choices=choices \
+            pos=pos \
             -- "$@"
         # positional argument not support const/requied
         if [[ $_is_positional = true  && ! ($const = $ARGPARSER_UNSET && $required = false) ]]; then
-            argparser_error $ARGPARSER_NAME "argparser_add_arg: positional argument do not support const/requied option."
+            argparser_error $ARGPARSER_NAME "argparser_add_arg: $optional_string: positional argument do not support const/requied option."
         fi
-        # check dest
+        # check pos: 
+        # 1.optional argument does not support pos; 
+        # 2.pos must in first|last
+        if [[ $pos != '' ]]; then
+            if [[ $_is_positional == true ]]; then
+                [[ $pos != 'first' && $pos != 'last' ]] && \
+                    argparser_error $ARGPARSER_NAME " argparser_add_arg: ${optional_string//|/ }: pos must be first|last: $pos."
+            else
+                argparser_error $ARGPARSER_NAME " argparser_add_arg: ${optional_string//|/ }: optional argument do not support pos option."
+            fi
+        fi
+        # dest must be an valid variable name
         local _pattern='^[_a-zA-Z][_0-9a-zA-Z]*$'
         if [[ $dest != '' && ! $dest =~ $_pattern ]]; then
-            argparser_error $ARGPARSER_NAME "argparser_add_arg: dest must be a valid variable name: $dest"
+            argparser_error $ARGPARSER_NAME " argparser_add_arg: ${optional_string//|/ }: dest must be a valid variable name: $dest."
         fi
-        # check nargs
+        # check nargs and set nargs=remain
         if [[ $nargs = $ARGPARSER_UNSET ]]; then
             if [[ $_is_positional = true ]]; then
                 # define nargs of positional argument
@@ -151,13 +165,16 @@ function argparser()
                 fi
             fi
         else
-            _pattern='0|\*|\?'
+            _pattern='^\?|\*|\+|remain|[1-9][0-9]*$'
+            [[ ! $nargs =~ $_pattern ]] && \
+                argparser_error $ARGPARSER_NAME " ${optional_string//|/ }: nargs must be in (?|*|+|remain|[number])."
+            _pattern='^0|\*|\?$'
             if [[ $const = $ARGPARSER_UNSET ]] && \
                     [[ $nargs =~ $_pattern ]]; then
                 argparser_error $ARGPARSER_NAME " argparser_add_arg: $optional_string: const values not unset, nargs can not be (0|*|?): $nargs"
             fi
         fi
-        # action
+        # action must be callable
         if ! _is_callback; then
             argparser_error $ARGPARSER_NAME " argparser_add_arg: $optional_string: action must be callable: $action"
         fi
@@ -176,7 +193,7 @@ function argparser()
         Argparser_argument_metavar=("${Argparser_argument_metavar[@]}" "$metavar")
         Argparser_argument_required=("${Argparser_argument_required[@]}" "$required")
         Argparser_argument_choices=("${Argparser_argument_choices[@]}" "$choices")
-        _Argparser_argument_status=("${_Argparser_argument_status[@]}" "$_status")
+        Argparser_argument_pos=("${Argparser_argument_pos[@]}" "$pos")
 	}
 
     function _is_callback()
@@ -203,64 +220,78 @@ function argparser()
 
 	function argparser_parse()
 	{
-        local _key
-        # find hyphen args
-        for ((_key=1; _key <= $#; _key++)); do
-            _cl_arg=${@:$_key:1}
-            if [[ $_cl_arg = '--' ]]; then
+        _prepare_argparser_aguments
+        # find hyphen command-line args
+        local i=0
+        local _args=()
+        while (($# > 0)); do
+            if [[ $1 = '--' ]]; then
+                shift
                 break
             fi
+            _args[$i]=$1
+            shift
+            ((i++))
         done
-        Argparser_du_hyphen_args=("${@:$(($_key + 1))}")
-        set -- "${@:1:$(($_key - 1))}"
-        # scanning command-line arguments and cut the last optional argument and its arg_value
-        local _cl_arg
-        for ((_key=$#; _key > 0 ; _key--)); do
-            _cl_arg=${@:$_key:1}
-            if _is_optional_argment "$_cl_arg"; then
-                break
-            fi
-        done
-        local last_cl_args_to_last_optional=("${@:$_key}")
-        set -- "${@:1:$(($_key - 1))}"
+        Argparser_du_hyphen_args=("$@")
+        set -- "${_args[@]}"
 
-        # first parsing optional arguments
+        local key pos
+        # step 1: parsing positional arguments whit pos
+        for key in "${_Argparser_argument_with_pos_keys[@]}"; do
+            pos=${Argparser_argument_pos[$key]}
+            if [[ $pos = 'first' ]]; then
+                { _parse_positional_arg "$@" && shift $___shift__num__; }
+            elif [[ $pos = 'last' ]]; then
+                { _parse_positional_arg_from_tail "$@" && shift $___shift__num__; }
+            fi
+        done
+
+        # step 2: parsing optional arguments
         local un_parsed_cl_args=()
         while (($# > 0)); do
             if _is_optional_argment "$1"; then
                 if _is_long_option "$1"; then
-                    { _parse_long_option "$@"; shift $shift_num; }
+                    _parse_long_option "$@" && shift $___shift__num__
                 else
-                    { _parse_short_option "$@"; shift $shift_num; }
+                    _parse_short_option "$@" && shift $___shift__num__
                 fi
             else
-                un_parsed_cl_args=("${un_parsed_cl_args[@]}", "$1")
-                shift
+                _parse_positional_arg "$@" && shift $___shift__num__
             fi
         done
 
-        # second parsing positional arguments
-        set -- "${un_parsed_cl_args}"
-        un_parsed_cl_args=()
-        while (($# > 0)); do
-            if _is_positional_argment "$1"; then
-                { _parse_positional_arg "$@"; shift $shift_num; } #here--
-            else
-                un_parsed_cl_args=("${un_parsed_cl_args[@]}", "$1")
-                shift
-            fi
-        done
-
-        # final
-        _if_residue_then_exit "${un_parsed_cl_args[@]}"
+        # final check unparsed args
         #here--
 	}
 
-    function _if_residue_then_exit()
+    # 1. set all arguments status to NO_PARSE
+    # 2. built with pos keys
+    function _prepare_argparser_aguments()
     {
-        if (($# > 0)); then
-            argparser_error $Argparser_prog_name "unknown argument: $1"
-        fi
+        local key argument_strings
+        local first_pos_arr=()
+        local last_pos_arr=()
+        for ((key=0; key <= ${#Argparser_argument_strings[@]}; key++)); do
+            # set all arguments status to NO_PARSE
+            argument_strings=${Argparser_argument_strings[$key]}
+            if _is_positional_argment "$argument_strings"; then
+                _Argparser_argument_status[$key]=$ARGPARSER_PA_NO_PARSE
+            else
+                _Argparser_argument_status[$key]=$ARGPARSER_OA_NO_PARSE
+            fi
+
+            if [[ ${Argparser_argument_pos[$key]} = 'first' ]]; then
+                first_pos_arr=("${first_pos_arr[@]}" "$key")
+            elif [[ ${Argparser_argument_pos[$key]} = 'last' ]]; then
+                last_pos_arr=("${last_pos_arr[@]}" "$key")
+            fi
+        done
+        # build pos keys
+        _Argparser_argument_with_pos_keys=("${first_pos_arr[@]}")
+        for ((key=${#last_pos_arr[@]} - 1; key >= 0; key--)); do
+            _Argparser_argument_with_pos_keys=("${_Argparser_argument_with_pos_keys[@]}" "${last_pos_arr[$key]}")
+        done
     }
 
     # parse the first long optional arguments
@@ -278,7 +309,7 @@ function argparser()
             sticking_value=${command_line_option_string#*=}
             command_line_option_string=${command_line_option_string%%=*}
         fi
-        local key=$(_get_argparser_arg_key "$command_line_option_string" $ARGPARSER_OA_NO_PARSE)
+        local key=$(_get_argparser_optional_arg_key "$command_line_option_string" $ARGPARSER_OA_NO_PARSE)
         if [[ $key = '' ]]; then
             argparser_error $Argparser_prog_name "unknown argument: $command_line_option_string"
         fi
@@ -318,7 +349,7 @@ function argparser()
         while ((${#command_line_1st_arg} > 2)); do
             _command_line_option_string=${command_line_1st_arg:0:2}
             _arg_residues=${command_line_1st_arg:2}
-            key=$(_get_argparser_arg_key "$_command_line_option_string" $ARGPARSER_OA_NO_PARSE)
+            key=$(_get_argparser_optional_arg_key "$_command_line_option_string" $ARGPARSER_OA_NO_PARSE)
             if [[ $key = '' ]]; then
                 argparser_error $Argparser_prog_name "unknown argument: $_command_line_option_string"
             fi
@@ -339,7 +370,7 @@ function argparser()
 
         # parsing starts
         local command_line_option_string=$command_line_1st_arg
-        key=$(_get_argparser_arg_key "$command_line_option_string" $ARGPARSER_OA_NO_PARSE)
+        key=$(_get_argparser_optional_arg_key "$command_line_option_string" $ARGPARSER_OA_NO_PARSE)
         if [[ $key = '' ]]; then
             argparser_error $Argparser_prog_name "unknown argument: $command_line_option_string"
         fi
@@ -365,14 +396,18 @@ function argparser()
 
     function _parse_positional_arg()
     {
+        local shift_num=0
         local key status
-        for ((key=0; key <= ${#_Argparser_argument_status[@]}; key++)); do
-            status=${_Argparser_argument_status[$key]}
-            if [[ $status = $ARGPARSER_PA_NO_PARSE ]]; then
-                :
-                break
-            fi
-        done
+        key=$(_get_argparser_positional_arg_key "$ARGPARSER_PA_NO_PARSE")
+        if [[ $key = '' ]]; then
+            argparser_error $Argparser_prog_name "unknown argument: $1"
+        fi
+        local nargs=${Argparser_argument_nargs[$key]}
+    }
+
+    function _parse_positional_arg_from_tail()
+    {
+        :
     }
 
     # - $1: key
@@ -411,25 +446,41 @@ function argparser()
     # - $1...: values of the argparser argument gotten
     function argparser_check() { :; }
 
-    # get the command-line-arg matching argparser index(key)
-    # - $1: command line argument string
+    # get the command-line-arg matching argparser optional argument index(key)
+    # - $1: command line optional string
     # - $2...: status from _Argparser_argument_status
-    function _get_argparser_arg_key()
+    function _get_argparser_optional_arg_key()
     {
         local cl_arg=$1
         shift
         local status=$*
         if [[ $status = '' ]]; then
-            status=$ARGPARSER_PA_PARSED$ARGPARSER_OA_PARSED$ARGPARSER_PA_NO_PARSE$ARGPARSER_OA_NO_PARSE
+            status=$ARGPARSER_OA_PARSED$ARGPARSER_OA_NO_PARSE
         fi
-        local _key _option_pattern
-        for ((_key=0; _key < ${#_Argparser_argument_status[@]}; _key++)); do
-            if [[ ${_Argparser_argument_status[$_key]} = [$status] ]]; then
-                _option_pattern='^'${Argparser_argument_strings[$_key]}'$'
+        local key _option_pattern
+        for ((key=0; key < ${#_Argparser_argument_status[@]}; key++)); do
+            if [[ ${_Argparser_argument_status[$key]} = [$status] ]]; then
+                _option_pattern='^'${Argparser_argument_strings[$key]}'$'
                 if [[ $cl_arg =~ $_option_pattern ]]; then
-                    echo $_key
+                    echo $key
                     return
                 fi
+            fi
+        done
+    }
+
+    # get the first argparser positional argument index
+    # - $1...: status from _Argparser_argument_status
+    function _get_argparser_positional_arg_key()
+    {
+        local $status=$*
+        if [[ $status = '' ]]; then
+            status=$ARGPARSER_PA_PARSED$ARGPARSER_PA_NO_PARSE
+        fi
+        for ((key=0; key < ${#_Argparser_argument_status[@]}; key++)); do
+            if [[ ${_Argparser_argument_status[$key]} = [$status] ]]; then
+                echo $key
+                return
             fi
         done
     }
@@ -490,7 +541,7 @@ function argparser()
                 argparser_error $Argparser_prog_name "$cl_option_string: required $nargs argument, but $values_len you supplied."
             fi
         else
-            argparser_error $ARGPARSER_NAME "unknown nargs: $nargs." fatal
+            argparser_error $ARGPARSER_NAME "_get_cl_arg_values: unsupported nargs: $nargs." fatal
         fi
         ___values__=("${values[@]}")
     }

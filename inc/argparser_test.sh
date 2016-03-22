@@ -197,7 +197,7 @@ function test_argparser_parse()
     argparser_add_arg --name dest=name default=ekeyme
     argparser_add_arg -b --binary dest=binary_name const=true default=false
     argparser_add_arg age default=26
-    argparser_parse --name no_body -b true
+    argparser_parse --name no_body -- -b true
     if [[ $name = 'no_body' && $binary_name = 'true' ]]; then
         echo ok
     else
