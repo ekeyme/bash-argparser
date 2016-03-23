@@ -3,7 +3,7 @@ ARGPARSER_NAME=argparser
 # data structure
 ARGPARSER_UNSET=__unset___
 ___values__=$ARGPARSER_UNSET
-___shift__num__=1
+___shift__num__=0
 # option_status 
 # 0: Positional Parameter(pp) do not show up in $@, so haven't been parsed
 # 2: pp have been parsed
@@ -279,18 +279,19 @@ function argparser()
         fi
         local nargs="${Argparser_argument_nargs[$key]}"
         if [[ $sticking_value = $ARGPARSER_UNSET ]]; then
-            _get_cl_arg_values $nargs "$command_line_option_string" "$@"
-            # set the values to $@
-            set -- "${___values__[@]}"
-            ((shift_num+=$#))
+            _get_cl_arg_values "$nargs" "$@"
+            ((shift_num+=$___shift__num__))
         else
             if [[ $nargs = 0 ]]; then
                 argparser_error $Argparser_prog_name "$command_line_option_string not need values: $command_line_option_string=$sticking_value"
             fi
-            _get_cl_arg_values $nargs "$command_line_option_string" "$sticking_value" "$@"
-            set -- "${___values__[@]}"
-            (( shift_num+=($# - 1) ))
+            _get_cl_arg_values "$nargs" "$sticking_value" "$@"
+            (( shift_num+=($___shift__num__ - 1) ))
         fi
+        # set the values to $@
+        set -- "${___values__[@]}"
+        #here-- check value num
+
         _set_value2dest $key "$command_line_option_string" "$@"
         # this argument has been parsed
         _Argparser_argument_status[$key]=$ARGPARSER_OA_PARSED
@@ -340,18 +341,20 @@ function argparser()
         fi
         nargs="${Argparser_argument_nargs[$key]}"
         if [[ $sticking_value = $ARGPARSER_UNSET ]]; then
-            _get_cl_arg_values $nargs "$command_line_option_string" "$@"
-            # set the values to $@
-            set -- "${___values__[@]}"
-            ((shift_num+=$#))
+            _get_cl_arg_values $nargs "$@"
+            ((shift_num+=$___shift__num__))
         else
             if [[ $nargs = 0 ]]; then
                 argparser_error $Argparser_prog_name "$command_line_option_string not need values: $command_line_option_string=$sticking_value"
             fi
-            _get_cl_arg_values $nargs "$command_line_option_string" "$sticking_value" "$@"
-            set -- "${___values__[@]}"
-            (( shift_num+=($# - 1) ))
+            _get_cl_arg_values $nargs "$sticking_value" "$@"
+            (( shift_num+=($___shift__num__ - 1) ))
         fi
+        # set the values to $@
+        set -- "${___values__[@]}"
+        # check values num
+        #here--
+
         _set_value2dest $key "$command_line_option_string" "$@"
         # this argument has been parsed
         _Argparser_argument_status[$key]=$ARGPARSER_OA_PARSED
@@ -367,11 +370,6 @@ function argparser()
             argparser_error $Argparser_prog_name "unknown argument: $1"
         fi
         local nargs=${Argparser_argument_nargs[$key]}
-    }
-
-    function _parse_positional_arg_from_tail()
-    {
-        :
     }
 
     # - $1: key
@@ -451,63 +449,108 @@ function argparser()
 
     # get values from command line arguments by nargs
     # - $1: nargs
-    # - $2: command line otpion string for error output
-    # - $3...: command line args
+    # - $2...: command line args
     # set to ___values__
     function _get_cl_arg_values()
     {
         local values=()
+        local shift_num=0
         local nargs=$1
-        local cl_option_string=$2
-        shift 2
+        shift
         if [[ $nargs = '?' ]]; then
             if _is_positional_argment "$1"; then
                 values=("$1")
+                shift_num=1
             fi
-        elif [[ $nargs = '*' ]]; then
-            while (($# > 0)); do
-                if _is_positional_argment "$1"; then
-                    values=("${values[@]}" "$1")
-                    shift
-                else
-                    break
-                fi
-            done
-        elif [[ $nargs = '+' ]]; then
-            while (($# > 0)); do
-                if _is_positional_argment "$1"; then
-                    values=("${values[@]}" "$1")
-                    shift
-                else
-                    break
-                fi
-            done
-            # values length must be > 2
-            if ((${#values[@]} < 1)); then
-                argparser_error $Argparser_prog_name "$cl_option_string: required at least 1 argument."
-            fi
+        elif [[ $nargs = ['*+'] ]]; then
+            _get_extending_values "$@" &&\
+            values=("$___values__")
+            shift_num=$___shift__num__
         elif [[ $nargs = 'remain' ]]; then
             values=("$@")
+            shift_num=$#
         elif (($nargs > 0)); then
-            local values_len=0
+            local value_len=0
             while (($# > 0)); do
                 if _is_positional_argment "$1"; then
                     values=("${values[@]}" "$1")
-                    values_len=${#values[@]}
-                    if (($values_len == $nargs)); then
+                    value_len=${#values[@]}
+                    if (($value_len == $nargs)); then
                         break
                     fi
                 else
                     break
                 fi
             done
-            if (($values_len != $nargs)); then
-                argparser_error $Argparser_prog_name "$cl_option_string: required $nargs argument, but $values_len you supplied."
-            fi
+            shift_num=$value_len
         else
             argparser_error $ARGPARSER_NAME "_get_cl_arg_values: unsupported nargs: $nargs." fatal
         fi
         ___values__=("${values[@]}")
+        ___shift__num__=$shift_num
+    }
+
+    # get values for the nargs=*|+ arguments
+    # - $1...: command-line args
+    function _get_extending_values()
+    {
+        # scaning
+        local has_extending_EOT=false
+        local are_all_args_positional=true
+        local shift_num=0
+        local values=()
+        # check if has_extending_EOT and are_all_args_positional
+        while (($# > 0)); do
+            if [[ $1 = $Argparser_nargs_extending_EOT ]]; then
+                has_extending_EOT=true
+                shift
+                while (($# > 0)); do
+                    if _is_optional_argment "$1"; then
+                        are_all_args_positional=false
+                        break
+                    fi
+                    shift
+                done
+                break
+            elif _is_optional_argment "$1"; then
+                are_all_args_positional=false
+                break
+            else
+                values=("${values[@]}" "$1")
+                shift
+            fi
+        done
+        # get values
+        if [[ ! $has_extending_EOT = true && $are_all_args_positional = true ]]; then
+            local reserved_num=$(_cl_arg_amount_need2reserved_now)
+            local value_len=${#values[@]}
+            if (($value_len > $reserved_num > 0)); then
+                values=("${values[@]:0:$(($value_len - $reserved_num))}")
+            fi
+        fi
+        shift_num=${#values[@]}
+        if [[ $has_extending_EOT = true ]]; then
+            ((shift_num++))
+        fi
+        ___shift__num__=$shift_num
+        ___values__=("${values[@]:0:$value_len}")
+    }
+
+    # calculate how much argparser argument nargs(only number type nargs) needing to reserved
+    function _cl_arg_amount_need2reserved_now()
+    {
+        local key nargs status
+        local reserved_num=0
+        local _pattern='^[0-9]+$'
+        for ((key=0; key < ${#_Argparser_argument_status[@]}; key++)); do
+            status=${_Argparser_argument_status[$key]}
+            nargs=${Argparser_argument_nargs[$key]}
+            if [[ $status = $ARGPARSER_PA_NO_PARSE ]] &&\
+                    [[ $nargs =~ _pattern ]]; then
+                    ((reserved_num+=$nargs))
+            fi
+        done
+        echo $reserved_num
     }
 
     # format help string, print it and exit
