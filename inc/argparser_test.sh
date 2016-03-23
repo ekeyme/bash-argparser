@@ -16,13 +16,15 @@ function test_argparser()
     local epilog='Author: ekeyme'
     local overwrited_usage='callback'
     local prefix_chars='-+'
+    local nargs_extending_EOT='!'
 
     argparser $app_name \
         prefix_chars="$prefix_chars" prologue="$prologue" \
         usage_string="$usage_string" \
         add_help="$add_help" description="$description" \
         epilog="$epilog" \
-        overwrited_usage="$overwrited_usage"
+        overwrited_help="$overwrited_help" \
+        nargs_extending_EOT="$nargs_extending_EOT"
 
     if [[ $Argparser_prog_name = $app_name ]] && \
             [[ $Argparser_prologue = $prologue ]] && \
@@ -30,7 +32,7 @@ function test_argparser()
             [[ $Argparser_add_help = $add_help ]] && \
             [[ $Argparser_description = $description ]] && \
             [[ $Argparser_epilog = $epilog ]] && \
-            [[ $Argparser_overwrited_usage = $overwrited_usage ]] && \
+            [[ $Argparser_overwrited_help = $overwrited_help ]] && \
             [[ $Argparser_prefix_chars = $prefix_chars ]]
     then
         echo ok
@@ -205,6 +207,7 @@ function test_argparser_parse()
     fi
 }
 
+(test_argparser)
 (test_argparser_add_arg2)
 (test_argparser_add_arg3)
 (test_argparser_add_arg4)
