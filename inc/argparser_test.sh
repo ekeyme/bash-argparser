@@ -196,15 +196,16 @@ function test_argparser_parse()
 {
     argparser
     printf '%s: ' 'argparser_parse should give the right values of options'
-    argparser_add_arg --name dest=name default=ekeyme
-    argparser_add_arg -b --binary dest=binary_name const=true default=false
-    argparser_add_arg age default=26
-    argparser_parse --name no_body -- -b true
-    if [[ $name = 'no_body' && $binary_name = 'true' ]]; then
-        echo ok
-    else
-        echo fail
-    fi
+    argparser_add_arg -i dest=shift_num default=Y const=N nargs=0
+    argparser_add_arg -q dest=quit default=Y const=N nargs=0
+    argparser_add_arg -n default=Y const=N nargs=1
+    argparser_add_arg -f nargs=2
+    argparser_add_arg -u default=Y const=N nargs=+
+    argparser_add_arg source default='~' nargs=1
+    argparser_add_arg out default='/tmp' nargs=2
+
+    argparser_parse -i -qn334 -f 1 2 -u 11 22 33 44 55 66
+    echo $shift_num $quit $n ${f[@]} $source ${out[@]} ${u[@]} 
 }
 
 (test_argparser)
