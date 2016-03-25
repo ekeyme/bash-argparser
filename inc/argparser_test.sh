@@ -195,17 +195,169 @@ function test_argparser_add_arg4()
 function test_argparser_parse()
 {
     argparser
-    printf '%s: ' 'argparser_parse should give the right values of options'
-    argparser_add_arg -i dest=shift_num default=Y const=N nargs=0
-    argparser_add_arg -q dest=quit default=Y const=N nargs=0
-    argparser_add_arg -n default=Y const=N nargs=1
-    argparser_add_arg -f nargs=2
-    argparser_add_arg -u default=Y const=N nargs=+
-    argparser_add_arg source default='~' nargs=1
-    argparser_add_arg out default='/tmp' nargs=2
+    printf '%s: %s: ' "$FUNCNAME" 'argparser_parse should give the right values of options'
+    argparser_add_arg files nargs=+
+    argparser_add_arg dest nargs=1
 
-    argparser_parse -i -qn334 -f 1 2 -u 11 22 33 44 55 66
-    echo $shift_num $quit $n ${f[@]} $source ${out[@]} ${u[@]} 
+    # test 1
+    cl_args=(file1 file2 file3 file4)
+    files_expected=(file1 file2 file3)
+    dest_expected=(file4)
+    argparser_parse "${cl_args[@]}"
+    if is_the_same_arr "${files_expected[@]}" -- "${files[@]}" &&\
+        is_the_same_arr "${dest_expected[@]}" -- "${dest[@]}"; then
+            echo ok
+    else
+        echo fail
+    fi
+}
+
+function test_argparser_parse1()
+{
+    argparser
+    printf '%s: %s: ' "$FUNCNAME" 'argparser_parse should give the right values of options'
+    argparser_add_arg file nargs=1
+    argparser_add_arg dest_dirs nargs=+
+    args=(file1 file2 'dd ff f' file4)
+    file_ex=(file1)
+    dest_dirs_ex=(file2 'dd ff f' file4)
+    argparser_parse "${args[@]}"
+    if is_the_same_arr "${file_ex[@]}" -- "${file[@]}" &&\
+        is_the_same_arr "${dest_dirs_ex[@]}" -- "${dest_dirs[@]}"; then
+            echo ok
+    else
+        echo fail
+    fi
+}
+
+function test_argparser_parse2()
+{
+    argparser
+    printf '%s: %s: ' "$FUNCNAME" 'argparser_parse should give the right values of options'
+    argparser_add_arg -v dest=verbose default=false const=true nargs=0
+    argparser_add_arg -q dest=quit_model default=false const=true nargs=0
+    argparser_add_arg -n --name default=ekeyme nargs=?
+    argparser_add_arg -e --emails dest=emails nargs=2
+    argparser_add_arg money dest=how_much nargs=1
+    argparser_add_arg currency nargs=1
+    argparser_add_arg distribution_to default='/tmp' nargs=+
+    argparser_add_arg source default='Guangzhou Doc' nargs='?'
+    
+    # test 1
+    arg=(-vqeekeyme@gmail.com ekeyme@foxmail.com 9999 dollar Beijing Hongkong - Zhanjiang)
+    e_verbose=(true)
+    e_quit_model=(true)
+    e_name=(ekeyme)
+    e_emails=(ekeyme@gmail.com ekeyme@foxmail.com)
+    e_how_much=(9999)
+    e_currency=(dollar)
+    e_distribution_to=(Beijing Hongkong)
+    e_source=(Zhanjiang)
+    argparser_parse "${arg[@]}"
+    if is_the_same_arr "${e_verbose[@]}" -- "${verbose[@]}" &&\
+        is_the_same_arr "${e_quit_model[@]}" -- "${quit_model[@]}" &&\
+        is_the_same_arr "${e_name[@]}" -- "${name[@]}" &&\
+        is_the_same_arr "${e_emails[@]}" -- "${emails[@]}" &&\
+        is_the_same_arr "${e_how_much[@]}" -- "${how_much[@]}" &&\
+        is_the_same_arr "${e_currency[@]}" -- "${currency[@]}" &&\
+        is_the_same_arr "${e_distribution_to[@]}" -- "${distribution_to[@]}" &&\
+        is_the_same_arr "${e_source[@]}" -- "${source[@]}"; then
+            :
+    else
+        echo test 1: fail
+        exit 1
+    fi
+
+    # test 2
+    arg=(-vqeekeyme@gmail.com ekeyme@foxmail.com 9999 dollar Beijing Hongkong Zhanjiang)
+    e_verbose=(true)
+    e_quit_model=(true)
+    e_name=(ekeyme)
+    e_emails=(ekeyme@gmail.com ekeyme@foxmail.com)
+    e_how_much=(9999)
+    e_currency=(dollar)
+    e_distribution_to=(Beijing Hongkong Zhanjiang)
+    e_source=('Guangzhou Doc')
+    argparser_parse "${arg[@]}"
+    if is_the_same_arr "${e_verbose[@]}" -- "${verbose[@]}" &&\
+        is_the_same_arr "${e_quit_model[@]}" -- "${quit_model[@]}" &&\
+        is_the_same_arr "${e_name[@]}" -- "${name[@]}" &&\
+        is_the_same_arr "${e_emails[@]}" -- "${emails[@]}" &&\
+        is_the_same_arr "${e_how_much[@]}" -- "${how_much[@]}" &&\
+        is_the_same_arr "${e_currency[@]}" -- "${currency[@]}" &&\
+        is_the_same_arr "${e_distribution_to[@]}" -- "${distribution_to[@]}" &&\
+        is_the_same_arr "${e_source[@]}" -- "${source[@]}"; then
+            :
+    else
+        echo test 2: fail
+        exit 1
+    fi
+
+    # test 3
+    arg=(-v -e ekeyme@gmail.com ekeyme@foxmail.com 9999 -n mozz dollar Beijing Hongkong Zhanjiang)
+    e_verbose=(true)
+    e_quit_model=(false)
+    e_name=(mozz)
+    e_emails=(ekeyme@gmail.com ekeyme@foxmail.com)
+    e_how_much=(9999)
+    e_currency=(dollar)
+    e_distribution_to=(Beijing Hongkong Zhanjiang)
+    e_source=('Guangzhou Doc')
+    argparser_parse "${arg[@]}"
+    if is_the_same_arr "${e_verbose[@]}" -- "${verbose[@]}" &&\
+        is_the_same_arr "${e_quit_model[@]}" -- "${quit_model[@]}" &&\
+        is_the_same_arr "${e_name[@]}" -- "${name[@]}" &&\
+        is_the_same_arr "${e_emails[@]}" -- "${emails[@]}" &&\
+        is_the_same_arr "${e_how_much[@]}" -- "${how_much[@]}" &&\
+        is_the_same_arr "${e_currency[@]}" -- "${currency[@]}" &&\
+        is_the_same_arr "${e_distribution_to[@]}" -- "${distribution_to[@]}" &&\
+        is_the_same_arr "${e_source[@]}" -- "${source[@]}"; then
+            :
+    else
+        echo test 3: fail
+        exit 1
+    fi
+
+    echo ok
+}
+
+function test_argparser_parse99()
+{
+    argparser
+    printf '%s: %s: ' "$FUNCNAME" 'argparser_parse should print help doc and exit.'
+    argparser
+    if (argparser_parse -h); then
+        echo fail
+    else
+        echo ok
+    fi
+}
+
+function is_the_same_arr()
+{
+    local arr1=()
+    local arr2=()
+    while (($# > 0)); do
+        if [[ $1 == '--' ]]; then
+            shift
+            while (($# > 0)); do
+                arr2=("${arr2[@]}" "$1")
+                shift
+            done
+        else
+            arr1=("${arr1[@]}" "$1")
+            shift
+        fi
+    done
+    local i v1 v2
+    ((${#arr1[@]} == ${#arr2[@]})) && ((${#arr1[@]} > 0)) &&\
+        for ((i=0; i < ${#arr1[@]}; i++)); do
+            v1=${arr1[$i]}
+            v2=${arr2[$i]}
+            if [[ $v1 != $v2 ]]; then
+                return 1
+            fi
+        done
 }
 
 (test_argparser)
@@ -213,3 +365,6 @@ function test_argparser_parse()
 (test_argparser_add_arg3)
 (test_argparser_add_arg4)
 (test_argparser_parse)
+(test_argparser_parse1)
+(test_argparser_parse2)
+#(test_argparser_parse99)

@@ -30,7 +30,7 @@ function argparser()
     Argparser_argument_strings=()
     Argparser_argument_dest=()
     Argparser_argument_check=()
-    Argparser_argumentaction=()
+    Argparser_argument_action=()
     Argparser_argument_default=()
     Argparser_argument_const=()
     Argparser_argument_nargs=()
@@ -126,7 +126,7 @@ function argparser()
             desc=desc metavar=metavar nargs=nargs const=const \
             default=default required=required choices=choices \
             -- "$@"
-        # positional argument not support const/requied
+        # positional argument not support const/required
         if [[ $_is_positional = true  && ! ($const = $ARGPARSER_UNSET && $required = false) ]]; then
             argparser_error $ARGPARSER_NAME "argparser_add_arg: $optional_string: positional argument do not support const/requied option."
         fi
@@ -156,11 +156,6 @@ function argparser()
             _pattern='^\?|\*|\+|remain|[1-9][0-9]*|0$'
             [[ ! $nargs =~ $_pattern ]] && \
                 argparser_error $ARGPARSER_NAME " ${optional_string//|/ }: nargs must be in (?|*|+|remain|[number])."
-            _pattern='^0|\*|\?$'
-            if [[ $const = $ARGPARSER_UNSET ]] && \
-                    [[ $nargs =~ $_pattern ]]; then
-                argparser_error $ARGPARSER_NAME " argparser_add_arg: $optional_string: const values not unset, nargs can not be (0|*|?): $nargs"
-            fi
         fi
         # action must be callable
         if ! _is_callback; then
@@ -238,7 +233,7 @@ function argparser()
             fi
         done
 
-        # final check unparsed args
+        # final check unparsed args and dump all the dest
         _final_check_argparser_aguments
         _globals_register dump
 	}
@@ -247,7 +242,7 @@ function argparser()
     function _prepare_argparser_aguments()
     {
         local key argument_strings
-        for ((key=0; key <= ${#Argparser_argument_strings[@]}; key++)); do
+        for ((key=0; key < ${#Argparser_argument_strings[@]}; key++)); do
             # set all arguments status to NO_PARSE
             argument_strings=${Argparser_argument_strings[$key]}
             if _is_positional_argment "$argument_strings"; then
@@ -260,11 +255,32 @@ function argparser()
 
     function _final_check_argparser_aguments()
     {
-        local key status
-        for ((key=0; key <= ${#_Argparser_argument_status[@]}; key++)); do
-            status=${#_Argparser_argument_status[$key]}
-            if [[ $status = [$ARGPARSER_OA_NO_PARSE$ARGPARSER_PA_NO_PARSE] ]]; then
-                :
+        local key status default is_required nargs argument_strings
+        for ((key=0; key < ${#_Argparser_argument_status[@]}; key++)); do
+            status=${_Argparser_argument_status[$key]}
+            is_required=${Argparser_argument_required[$key]}
+            default=${Argparser_argument_default[$key]}
+            argument_strings=${Argparser_argument_strings[$key]}
+            if [[ $status = $ARGPARSER_OA_NO_PARSE ]]; then # optional argument
+                if [[ $is_required = false ]]; then
+                    _set_default2dest "$key"
+                    _Argparser_argument_status[$key]=$ARGPARSER_OA_PARSED
+                else
+                    local short_option=$(_choose_shortest_optional_string "$argument_strings")
+                    argparser_error "$Argparser_prog_name" "argument $short_option is required."
+                fi
+            elif [[ $status = $ARGPARSER_PA_NO_PARSE ]]; then
+                nargs=${Argparser_argument_nargs[$key]}
+                if [[ $nargs = ['?*'] ]]; then
+                    _set_default2dest "$key"
+                    _Argparser_argument_status[$key]=$ARGPARSER_PA_PARSED
+                else
+                    local metavar=$(_choose_metavar \
+                                    "${Argparser_argument_metavar[$key]}" \
+                                    "${Argparser_argument_dest[$key]}" \
+                                    "$argument_strings")
+                    argparser_error "$Argparser_prog_name" "argument $metavar is missing."
+                fi
             fi
         done
     }
@@ -290,17 +306,6 @@ function argparser()
             argparser_error $Argparser_prog_name "unrecognized argument: $option_string"
         fi
         local nargs="${Argparser_argument_nargs[$key]}"
-        if [[ $nargs = 0 ]]; then
-            if [[ $sticking_value != $ARGPARSER_UNSET ]]; then
-                argparser_error $Argparser_prog_name "$option_string not need values: $option_string=$sticking_value"
-            fi
-            dest=$(_choose_dest "${Argparser_argument_dest[$key]}" "${Argparser_argument_strings[$key]}")
-            _globals_register register "$dest" "${Argparser_argument_const[$key]}"
-            _Argparser_argument_status[$key]=$ARGPARSER_OA_PARSED
-            ___shift__num__=$shift_num
-            return 0
-        fi
-
         if [[ $sticking_value = $ARGPARSER_UNSET ]]; then
             _get_cl_arg_values $nargs "$@"
             ((shift_num+=$___shift__num__))
@@ -314,11 +319,7 @@ function argparser()
         # set the values to $@
         set -- "${___values__[@]}"
         # whether values count matches nargs
-        _check_value_narg_matching "$nargs" "$option_string" "$@"
-
         _set_value2dest $key "$option_string" "$@"
-        # this argument has been parsed
-        _Argparser_argument_status[$key]=$ARGPARSER_OA_PARSED
         ___shift__num__=$shift_num
     }
 
@@ -345,10 +346,7 @@ function argparser()
             fi
             nargs=${Argparser_argument_nargs[$key]}
             if [[ $nargs = 0 ]]; then
-                dest=$(_choose_dest "${Argparser_argument_dest[$key]}" "${Argparser_argument_strings[$key]}")
-                _globals_register register "$dest" "${Argparser_argument_const[$key]}"
-                # this argument has been parsed
-                _Argparser_argument_status[$key]=$ARGPARSER_OA_PARSED
+                _set_value2dest $key "$_option_string"
                 # rebuilt command_line_1st_arg
                 command_line_1st_arg='-'$_arg_residues
             else
@@ -364,18 +362,7 @@ function argparser()
         if [[ $key = '' ]]; then
             argparser_error $Argparser_prog_name "unrecognized argument: $option_string"
         fi
-        nargs="${Argparser_argument_nargs[$key]}"
-        if [[ $nargs = 0 ]]; then
-            if [[ $sticking_value != $ARGPARSER_UNSET ]]; then
-                argparser_error "$ARGPARSER_NAME" "$FUNCNAME: short optional $option_string shouldn't contain sticking value-$sticking_value-when its nargs=$nargs." 'internal fatal'
-            fi
-            dest=$(_choose_dest "${Argparser_argument_dest[$key]}" "${Argparser_argument_strings[$key]}")
-            _globals_register register "$dest" "${Argparser_argument_const[$key]}"
-            _Argparser_argument_status[$key]=$ARGPARSER_OA_PARSED
-            ___shift__num__=$shift_num
-            return 0
-        fi
-
+        nargs=${Argparser_argument_nargs[$key]}
         if [[ $sticking_value = $ARGPARSER_UNSET ]]; then
                 _get_cl_arg_values $nargs "$@"
                 ((shift_num+=$___shift__num__))
@@ -388,12 +375,7 @@ function argparser()
         fi
         # set the values to $@
         set -- "${___values__[@]}"
-        # whether values count matches nargs
-        _check_value_narg_matching "$nargs" "$option_string" "$@"
-
         _set_value2dest $key "$option_string" "$@"
-        # this argument has been parsed
-        _Argparser_argument_status[$key]=$ARGPARSER_OA_PARSED
         ___shift__num__=$shift_num
     }
 
@@ -411,19 +393,12 @@ function argparser()
             argparser_error $ARGPARSER_NAME "$FUNCNAME: shift number can not be 0." 'internal fatal'
         ((shift_num+=$___shift__num__))
         set -- "${___values__[@]}"
-        local metavar=$(_choose_metavar \
-                        "${Argparser_argument_metavar[$key]}" \
-                        "${Argparser_argument_dest[$key]}" \
-                        "${Argparser_argument_strings[$key]}")
-        _check_value_narg_matching "$nargs" "$option_string" "$@"
-        _set_value2dest $key "$option_string" "$@"
-        # this argument has been parsed
-        _Argparser_argument_status[$key]=$ARGPARSER_PA_PARSED
+        _set_value2dest $key - "$@"
         ___shift__num__=$shift_num
     }
 
     # - $1: nargs
-    # - $2: error identifer: command-line optional string for optional argument; meteavar for positional argument
+    # - $2: error identifer: command-line optional string for optional argument; metavar for positional argument
     # - $3...: values
     function _check_value_narg_matching()
     {
@@ -431,53 +406,87 @@ function argparser()
         local error_identifer=$2
         local ignore_pattern='^\*|\?|remain$'
         shift 2
-        local _pattern='^[1-9][0-9]*$'
-        if [[ $nargs =~ $_pattern ]]; then
-            if [[ $# != $nargs ]]; then
+        local pattern='^[1-9][0-9]*|0$'
+        if [[ $nargs =~ $pattern ]]; then
+            if (($# < $nargs)); then
                 argparer_usage
-                argparser_error $Argparser_prog_name "argument $error_identifer: expected $nargs arguments, but just $# you supplied: $1 ... ."
+                argparser_error $Argparser_prog_name "argument $error_identifer: expected $nargs arguments, but $# you supplied: $1... ."
+            elif (($# > $nargs)); then
+                argparser_error $ARGPARSER_NAME "$FUNCNAME: argument $error_identifer nargs $nargs < $# value amount." internal
             fi
         elif [[ $nargs = '+' ]]; then # only used for optional argument
             if (($# < 1)); then
                 argparer_usage
-                argparser_error $Argparser_prog_name "argument $error_identifer: expected at least 1 argument."
+                argparser_error $Argparser_prog_name "argument $error_identifer expected at least 1 argument."
             fi
         elif [[ $nargs =~ $ignore_pattern ]]; then
             : # do nothing
         else
-            argparser_error $ARGPARSER_NAME "$FUNCNAME: invalid nargs: $nargs." 'internal fatal'
+            argparser_error $ARGPARSER_NAME "$FUNCNAME: argument $error_identifer: invalid nargs: $nargs." internal
         fi
     }
 
     # - $1: key
-    # - $2: command_line_option_string
+    # - $2: -(positional)|command-line arg option string(optional)
     # - $?...: values
     function _set_value2dest()
     {
         local key=$1
-        local command_line_option_string=$2
+        local error_identifer=$2
         shift 2
-        local arg_strings=${Argparser_argument_strings[$key]}
-        local dest=$(_choose_dest "${Argparser_argument_dest[$key]}" "$arg_strings")
+        local nargs=${Argparser_argument_nargs[$key]}
+        local is_positional=false
+        local parsed_status=$ARGPARSER_OA_PARSED
+        if [[ $error_identifer = '-' ]]; then
+            is_positional=true
+            parsed_status=$ARGPARSER_PA_PARSED
+            error_identifer=$(_choose_metavar \
+                                "${Argparser_argument_metavar[$key]}" \
+                                "${Argparser_argument_dest[$key]}" \
+                                "${Argparser_argument_strings[$key]}")
+        fi
+        _check_value_narg_matching "$nargs" "$error_identifer" "$@"
+        local action=${Argparser_argument_action[$key]}
+        local dest=$(_choose_dest "${Argparser_argument_dest[$key]}" "${Argparser_argument_strings[$key]}")
         if (($# == 0)); then
-            _globals_register register "$dest" "$Argparser_argument_const[$key]"
+            if [[ $is_positional = false ]]; then
+                local const=${Argparser_argument_const[$key]}
+                if [[ $const = $ARGPARSER_UNSET ]]; then
+                    $action "$dest" "$error_identifer" "$arg_strings" - - -
+                else
+                    $action "$dest" "$error_identifer" "$arg_strings" - - - "$const"
+                fi
+            else
+                argparser_error $ARGPARSER_NAME "$FUNCNAME: positional argument $error_identifer: value couldn't be empty." internal
+            fi
         else
-            local _v
+            local v
             # is in choices?
             local choices="${Argparser_argument_choices[$key]}"
             if [[ $choices != '' ]]; then
-                local _pattern=\^$choices\$
-                for _v in "$@"; do
-                    [[ $_v =~ $_pattern ]] || \
-                        argparser_error $Argparser_prog_name "$command_line_option_string: $_v not in [$choices]" choices_error
+                local pattern=\^$choices\$
+                for v in "$@"; do
+                    [[ $v =~ $pattern ]] || \
+                        argparser_error $Argparser_prog_name "argument $error_identifer: $v not in [$choices]"
                 done
             fi
             # check values
             local check="${Argparser_argument_check[$key]}"
             $check "$@"
-            # action; default store the value
-            local action="${Argparser_argument_action[$key]}"
-            $action "$dest" "$command_line_option_string" "$arg_strings" - - - "$@"
+            $action "$dest" "$error_identifer" "$arg_strings" - - - "$@"
+        fi
+        # argument have been parsed
+        _Argparser_argument_status[$key]=$parsed_status
+    }
+
+    # - $1: key
+    function _set_default2dest()
+    {
+        local key=$1
+        local dest=$(_choose_dest "${Argparser_argument_dest[$key]}" "${Argparser_argument_strings[$key]}")
+        local default=${Argparser_argument_default[$key]}
+        if [[ $default != $ARGPARSER_UNSET ]]; then
+            _globals_register register "$dest" "$default"
         fi
     }
 
@@ -562,8 +571,10 @@ function argparser()
                 fi
             done
             shift_num=$value_len
+        elif [[ $nargs = 0 ]]; then
+            : # do nothing
         else
-            argparser_error $ARGPARSER_NAME "$FUNCNAME: invalid nargs: $nargs." 'internal fatal'
+            argparser_error $ARGPARSER_NAME "$FUNCNAME: invalid nargs: $nargs." internal
         fi
         ___values__=("${values[@]}")
         ___shift__num__=$shift_num
@@ -589,14 +600,6 @@ function argparser()
         while (($# > 0)); do
             if [[ $1 = $Argparser_nargs_extending_EOT ]]; then
                 has_extending_EOT=true
-                shift
-                while (($# > 0)); do
-                    if _is_optional_argment "$1"; then
-                        are_all_args_positional=false
-                        break
-                    fi
-                    shift
-                done
                 break
             elif _is_optional_argment "$1"; then
                 are_all_args_positional=false
@@ -619,7 +622,7 @@ function argparser()
             ((shift_num++))
         fi
         ___shift__num__=$shift_num
-        ___values__=("${values[@]:0:$value_len}")
+        ___values__=("${values[@]}")
     }
 
     # calculate how much argparser argument nargs(only number type nargs) needing to reserved
@@ -643,6 +646,7 @@ function argparser()
     function argparser_help()
     {
         echo 'This a help msg.'
+        exit 1
     }
 
     function argparer_usage()
@@ -671,9 +675,9 @@ function argparser()
 
     function _choose_shortest_optional_string()
     {
-        local optional_strings=(${1//'|'/ })
+        local optional_strings=${1//'|'/ }
         local shortest_one
-        set -- "${optional_strings[@]}"
+        set -- ${optional_strings[*]}
         shortest_one=$1
         shift
         while (($# > 0)); do
@@ -702,7 +706,9 @@ function argparser()
     {
         local dest=$1
         shift 6
-        _globals_register register "$dest" "$@"
+        if (($# > 0)) && [[ $dest != '' ]]; then
+            _globals_register register "$dest" "$@"
+        fi
     }
 
     # - $1: metavar
@@ -723,9 +729,9 @@ function argparser()
             echo "$dest"
         else
             shift
-            local arg_strings=("${1//|/ }")
+            local arg_strings=${1//|/ }
             local _pattern='^[_a-zA-Z][_0-9a-zA-Z]*$'
-            set -- "${arg_strings[@]}"
+            set -- ${arg_strings[*]}
             dest=''
             while (($# > 0)); do
                 _dest=$(_trim_option_prefixs "$1")
@@ -801,7 +807,7 @@ function argparser()
         elif [[ $action__ = 'dry_dump' ]]; then
             unset __Globals_Register_Variable_Declaring_Literal__
         else
-            argparser_error "ARGPARSER_NAME" "$FUNCNAME: invalid action__: $action__." fatal
+            argparser_error "$ARGPARSER_NAME" "$FUNCNAME: invalid action__: $action__." fatal
         fi
     }
 
@@ -830,7 +836,7 @@ function argparser()
     fi
     # add help option here
     if [[ $Argparser_add_help = true ]]; then
-        argparser_add_arg -h --help desc="show this help message and exit" action=argparser_help
+        argparser_add_arg -h --help desc="show this help message and exit" action=argparser_help nargs=0
     fi
     # -- initial argparser done
 }
