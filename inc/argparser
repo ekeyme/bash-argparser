@@ -59,7 +59,7 @@ function argparser()
 			if [[ ! $i =~ $_pattern ]]; then
 				argparser_error $ARGPARSER_NAME "invalid parameter: $i" fatal
 			fi
-			argparser_to_argument_name_pair=("${argparser_to_argument_name_pair[@]}" "${i/=/ }")
+			argparser_to_argument_name_pair[${#argparser_to_argument_name_pair[@]}]="${i/=/ }"
 		done
 		# parse start
 		local _has_get_flag
@@ -108,7 +108,7 @@ function argparser()
 			shift
 		done
         optional_string=${optional_string#|}
-        Argparser_argument_strings=("${Argparser_argument_strings[@]}" "$optional_string")
+        Argparser_argument_strings[${#Argparser_argument_strings[@]}]=$optional_string
 
         # fetch other option data
         local dest=''
@@ -166,16 +166,16 @@ function argparser()
             argparser_error $ARGPARSER_NAME " argparser_add_arg: $optional_string: check must be callable: $check"
         fi
 
-        Argparser_argument_dest=("${Argparser_argument_dest[@]}" "$dest")
-        Argparser_argument_check=("${Argparser_argument_check[@]}" "$check")
-        Argparser_argument_action=("${Argparser_argument_action[@]}" "$action")
-        Argparser_argument_default=("${Argparser_argument_default[@]}" "$default")
-        Argparser_argument_const=("${Argparser_argument_const[@]}" "$const")
-        Argparser_argument_nargs=("${Argparser_argument_nargs[@]}" "$nargs")
-        Argparser_argument_desc=("${Argparser_argument_desc[@]}" "$desc")
-        Argparser_argument_metavar=("${Argparser_argument_metavar[@]}" "$metavar")
-        Argparser_argument_required=("${Argparser_argument_required[@]}" "$required")
-        Argparser_argument_choices=("${Argparser_argument_choices[@]}" "$choices")
+        Argparser_argument_dest[${#Argparser_argument_dest[@]}]=$dest
+        Argparser_argument_check[${#Argparser_argument_check[@]}]=$check
+        Argparser_argument_action[${#Argparser_argument_action[@]}]=$action
+        Argparser_argument_default[${#Argparser_argument_default[@]}]=$default
+        Argparser_argument_const[${#Argparser_argument_const[@]}]=$const
+        Argparser_argument_nargs[${#Argparser_argument_nargs[@]}]=$nargs
+        Argparser_argument_desc[${#Argparser_argument_desc[@]}]=$desc
+        Argparser_argument_metavar[${#Argparser_argument_metavar[@]}]=$metavar
+        Argparser_argument_required[${#Argparser_argument_required[@]}]=$required
+        Argparser_argument_choices[${#Argparser_argument_choices[@]}]=$choices
 	}
 
     function _is_callback()
@@ -605,7 +605,7 @@ function argparser()
                 are_all_args_positional=false
                 break
             else
-                values=("${values[@]}" "$1")
+                values[${#values[@]}]=$1
                 shift
             fi
         done
@@ -787,7 +787,7 @@ function argparser()
             local values__=()
             while (($# > 0)); do
                 v__=\'${1//"'"/"'\''"}\'
-                values__=("${values__[@]}" "$v__") # push to array
+                values__[${#values__[@]}]=$v__ # push to array
                 shift
             done
             # arbitrarily set the value to variable
