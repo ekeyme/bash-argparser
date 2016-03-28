@@ -10,29 +10,29 @@ function test_argparser()
 
     local app_name='fakeapp'
     local prologue='prologue'
-    local usage_string='%(prog_name) %(other_difine_string) do something'
+    local usage='%(prog_name) %(other_difine_string) do something'
     local add_help=true
     local description='app description'
     local epilog='Author: ekeyme'
-    local overwrited_usage='callback'
+    local help=callback
     local prefix_chars='-+'
     local nargs_extending_EOT='!'
 
     argparser $app_name \
         prefix_chars="$prefix_chars" prologue="$prologue" \
-        usage_string="$usage_string" \
+        usage="$usage" \
         add_help="$add_help" description="$description" \
         epilog="$epilog" \
-        overwrited_help="$overwrited_help" \
+        help="$help" \
         nargs_extending_EOT="$nargs_extending_EOT"
 
     if [[ $Argparser_prog_name = $app_name ]] && \
             [[ $Argparser_prologue = $prologue ]] && \
-            [[ $Argparser_usage_string = $usage_string ]] && \
+            [[ $Argparser_usage = $usage ]] && \
             [[ $Argparser_add_help = $add_help ]] && \
             [[ $Argparser_description = $description ]] && \
             [[ $Argparser_epilog = $epilog ]] && \
-            [[ $Argparser_overwrited_help = $overwrited_help ]] && \
+            [[ $Argparser_help = $help ]] && \
             [[ $Argparser_prefix_chars = $prefix_chars ]]
     then
         echo ok
@@ -240,7 +240,7 @@ function test_argparser_parse2()
     argparser_add_arg -e --emails dest=emails nargs=2
     argparser_add_arg money dest=how_much nargs=1
     argparser_add_arg currency nargs=1
-    argparser_add_arg distribution_to default='/tmp' nargs=+
+    argparser_add_arg distribution_to default='/tmp' nargs='*'
     argparser_add_arg source default='Guangzhou Doc' nargs='?'
     
     # test 1
@@ -321,6 +321,109 @@ function test_argparser_parse2()
     echo ok
 }
 
+function test_argparser_parse3()
+{
+    argparser
+    printf '%s: %s: ' "$FUNCNAME" 'argparser_parse should give the right values of options'
+    argparser_add_arg -v dest=verbose default=false const=true nargs=0
+    argparser_add_arg -f --file default=ekeyme nargs=+
+    argparser_add_arg -t --type default=r nargs=1
+    argparser_add_arg distribution_to default='/tmp' nargs='*'
+    argparser_add_arg user default=mozz nargs=?
+
+    # test 1
+    arg=(-vf file1 file2 file3 -tdir magic castor - zj)
+    e_verbose=(true)
+    e_file=(file1 file2 file3)
+    e_type=('dir')
+    e_distribution_to=(magic castor)
+    e_user=(zj)
+    argparser_parse "${arg[@]}"
+    if is_the_same_arr "${e_verbose[@]}" -- "${verbose[@]}" &&\
+        is_the_same_arr "${e_file[@]}" -- "${file[@]}" &&\
+        is_the_same_arr "${e_type[@]}" -- "${type[@]}" &&\
+        is_the_same_arr "${e_distribution_to[@]}" -- "${distribution_to[@]}" &&\
+        is_the_same_arr "${e_user[@]}" -- "${user[@]}"; then
+            :
+    else
+        echo test 1: fail
+        exit 1
+    fi
+
+    # test 2
+    arg=(-vf file1 file2 file3 - magic castor -tdir zj)
+    e_verbose=(true)
+    e_file=(file1 file2 file3)
+    e_type=('dir')
+    e_distribution_to=(magic castor)
+    e_user=(zj)
+    argparser_parse "${arg[@]}"
+    if is_the_same_arr "${e_verbose[@]}" -- "${verbose[@]}" &&\
+        is_the_same_arr "${e_file[@]}" -- "${file[@]}" &&\
+        is_the_same_arr "${e_type[@]}" -- "${type[@]}" &&\
+        is_the_same_arr "${e_distribution_to[@]}" -- "${distribution_to[@]}" &&\
+        is_the_same_arr "${e_user[@]}" -- "${user[@]}"; then
+            :
+    else
+        echo test 2: fail
+        exit 1
+    fi
+
+    # test 3
+    arg=(-v magic castor -f file1 file2 file3 -tdir zj)
+    e_verbose=(true)
+    e_file=(file1 file2 file3)
+    e_type=('dir')
+    e_distribution_to=(magic castor)
+    e_user=(zj)
+    argparser_parse "${arg[@]}"
+    if is_the_same_arr "${e_verbose[@]}" -- "${verbose[@]}" &&\
+        is_the_same_arr "${e_file[@]}" -- "${file[@]}" &&\
+        is_the_same_arr "${e_type[@]}" -- "${type[@]}" &&\
+        is_the_same_arr "${e_distribution_to[@]}" -- "${distribution_to[@]}" &&\
+        is_the_same_arr "${e_user[@]}" -- "${user[@]}"; then
+            :
+    else
+        echo test 3: fail
+        exit 1
+    fi
+
+    # test 4
+    arg=(magic castor -v -f file1 file2 file3 -tdir zj)
+    e_verbose=(true)
+    e_file=(file1 file2 file3)
+    e_type=('dir')
+    e_distribution_to=(magic castor)
+    e_user=(zj)
+    argparser_parse "${arg[@]}"
+    if is_the_same_arr "${e_verbose[@]}" -- "${verbose[@]}" &&\
+        is_the_same_arr "${e_file[@]}" -- "${file[@]}" &&\
+        is_the_same_arr "${e_type[@]}" -- "${type[@]}" &&\
+        is_the_same_arr "${e_distribution_to[@]}" -- "${distribution_to[@]}" &&\
+        is_the_same_arr "${e_user[@]}" -- "${user[@]}"; then
+            :
+    else
+        echo test 4: fail
+        exit 1
+    fi
+
+    echo ok
+}
+
+function test_argparser_parse4()
+{
+    argparser
+    printf '%s: %s: ' "$FUNCNAME" 'argparser_parse exit when required argument does not be supplied'
+    argparser
+    argparser_add_arg -f dest=file required=true
+    argparser_add_arg -n dest=name nargs=1
+    if (argparser_parse -n ekeyme); then
+        echo fail
+    else
+        echo ok
+    fi
+}
+
 function test_argparser_parse99()
 {
     argparser
@@ -367,4 +470,6 @@ function is_the_same_arr()
 (test_argparser_parse)
 (test_argparser_parse1)
 (test_argparser_parse2)
-#(test_argparser_parse99)
+(test_argparser_parse3)
+(test_argparser_parse4)
+(test_argparser_parse99)
