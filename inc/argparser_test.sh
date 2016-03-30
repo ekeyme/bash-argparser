@@ -413,6 +413,43 @@ function test_argparser_parse3()
 function test_argparser_parse4()
 {
     argparser
+    printf '%s: %s: ' "$FUNCNAME" 'argparser_parse should give the right values of options'
+    argparser
+    argparser_add_arg command
+    argparser_add_arg -o dest=options nargs=remain
+
+    # test 1
+    arg=(mycommand -o -v -f file2 -t text)
+    e_command=(mycommand)
+    e_options=(-v -f file2 -t text)
+    argparser_parse "${arg[@]}"
+    if is_the_same_arr "${e_command[@]}" -- "${command[@]}" &&\
+        is_the_same_arr "${e_options[@]}" -- "${options[@]}"; then
+        :
+    else
+        echo test 1: fail
+        exit 1
+    fi
+
+    # test 2
+    arg=(mycommand -o)
+    e_command=(mycommand)
+    e_options=()
+    argparser_parse "${arg[@]}"
+    if is_the_same_arr "${e_command[@]}" -- "${command[@]}" &&\
+        is_the_same_arr "${e_options[@]}" -- "${options[@]}"; then
+        :
+    else
+        echo test 2: fail
+        exit 1
+    fi
+
+    echo ok
+}
+
+function test_argparser_parse5()
+{
+    argparser
     printf '%s: %s: ' "$FUNCNAME" 'argparser_parse exit when required argument does not be supplied'
     argparser
     argparser_add_arg -f dest=file required=true
@@ -453,7 +490,7 @@ function is_the_same_arr()
         fi
     done
     local i v1 v2
-    ((${#arr1[@]} == ${#arr2[@]})) && ((${#arr1[@]} > 0)) &&\
+    ((${#arr1[@]} == ${#arr2[@]})) &&\
         for ((i=0; i < ${#arr1[@]}; i++)); do
             v1=${arr1[$i]}
             v2=${arr2[$i]}
@@ -472,4 +509,23 @@ function is_the_same_arr()
 (test_argparser_parse2)
 (test_argparser_parse3)
 (test_argparser_parse4)
+(test_argparser_parse5)
 (test_argparser_parse99)
+
+
+
+
+function test__format_usge()
+{
+    argparser
+    argparser_add_arg -v dest=verbose default=false const=true nargs=0
+    argparser_add_arg -q dest=quit_model default=false const=true nargs=0
+    argparser_add_arg -n --name default=ekeyme nargs=?
+    argparser_add_arg -e --emails dest=emails nargs=2
+    argparser_add_arg money dest=how_much nargs=1
+    argparser_add_arg currency nargs=1
+    argparser_add_arg distribution_to default='/tmp' nargs='*'
+    argparser_add_arg source default='Guangzhou Doc' nargs='?'
+    argparer_usage
+}
+test__format_usge

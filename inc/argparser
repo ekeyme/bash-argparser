@@ -19,12 +19,12 @@ Argparser_help=$ARGPARSER_UNSET
 Argparser_prefix_chars='-'
 Argparser_nargs_extending_EOT='-'
 Argparser_prologue=''
-Argparser_usage=''
+Argparser_usage=$ARGPARSER_UNSET
 Argparser_description=''
 Argparser_epilog=''
 Argparser_add_help=true
 
-argparer_usage=$ARGPARSER_UNSET
+_argparser_usage=$ARGPARSER_UNSET
 
 function argparser()
 {
@@ -110,7 +110,7 @@ function argparser()
         # fetch other option data
         local dest=''
         local check=argparser_check
-        local action=argparser_store
+        local action=''
         local desc=''
         local metavar=$ARGPARSER_UNSET
         local required=false
@@ -129,7 +129,7 @@ function argparser()
             argparser_error $FUNCNAME "argument_string: dest must be a valid variable name: $dest."
         fi
         # action must be callable
-        if ! _is_callback "$action"; then
+        if [[ $action != '' ]] && ! _is_callback "$action"; then
             argparser_error $FUNCNAME "$argument_string: action must be callable: $action."
         fi
         # check must be callable
@@ -464,15 +464,18 @@ function argparser()
                                 "${Argparser_argument_strings[$key]}")
         fi
         _check_value_narg_matching "$nargs" "$error_identifer" "$@"
-        local action=${Argparser_argument_action[$key]}
-        local dest=$(_choose_dest "${Argparser_argument_dest[$key]}" "${Argparser_argument_strings[$key]}")
         if (($# == 0)); then
             if [[ $is_positional = false ]]; then
+                if [[ $nargs = remain ]]; then
+                    _do_action set "$key" "$error_identifer"
+                    _Argparser_argument_status[$key]=$parsed_status
+                    return 0
+                fi
                 local const=${Argparser_argument_const[$key]}
                 if [[ $const = $ARGPARSER_UNSET ]]; then
-                    $action "$dest" "$error_identifer" "$arg_strings" - - -
+                    _do_action no_set "$key" "$error_identifer"
                 else
-                    $action "$dest" "$error_identifer" "$arg_strings" - - - "$const"
+                    _do_action set "$key" "$error_identifer" "$const"
                 fi
             else
                 argparser_error $ARGPARSER_NAME "$FUNCNAME: positional argument $error_identifer: value couldn't be empty." internal
@@ -491,7 +494,7 @@ function argparser()
             # check values
             local check="${Argparser_argument_check[$key]}"
             $check "$@"
-            $action "$dest" "$error_identifer" "$arg_strings" - - - "$@"
+            _do_action set "$key" "$error_identifer" "$@"
         fi
         # argument have been parsed
         _Argparser_argument_status[$key]=$parsed_status
@@ -672,21 +675,61 @@ function argparser()
 
     function argparer_usage()
     {
-        if [[ $argparer_usage = $ARGPARSER_UNSET ]]; then
+        if [[ $_argparser_usage = $ARGPARSER_UNSET ]]; then
             _format_usge
-        elif [[ $argparer_usage = '' ]]; then
+        fi
+        if [[ $_argparser_usage = '' ]]; then
             : # do nothin
         else
-            printf '%s\n' "$argparer_usage"
+            printf '%s\n' "$_argparser_usage"
         fi
     }
 
     function _format_usge()
     {
-        argparer_usage='usage: $Argparser_prog_name '
-        local key arg_strings
+        if [[ $Argparser_usage != $ARGPARSER_UNSET ]]; then
+            # --here formate the user string.
+            return
+        fi
+        _argparser_usage="usage: $Argparser_prog_name"
+        local _metavar_string one_arg_usage option_string
+        local pattern='^[1-9][0-9]*$'
+        local key nargs arg_strings metavar
         for key in ${!Argparser_argument_strings[@]}; do
+            nargs=${Argparser_argument_nargs[$key]}
             arg_strings=${Argparser_argument_strings[$key]}
+            metavar=$(_choose_metavar \
+                        "${Argparser_argument_metavar[$key]}" \
+                        "${Argparser_argument_dest[$key]}" \
+                        "$arg_strings")
+            if [[ $nargs =~ $pattern ]]; then
+                printf -v _metavar_string "$metavar %.0s" $(seq $nargs)
+                _metavar_string=${_metavar_string% }
+            else
+                case $nargs in
+                    '?') _metavar_string="[$metavar]"
+                        ;;
+                    '*') _metavar_string="[$metavar ...]"
+                        ;;
+                    '+') _metavar_string="$metavar [$metavar ...]"
+                        ;;
+                    'remain') _metavar_string="..."
+                        ;;
+                    '0') _metavar_string=""
+                        ;;
+                esac
+            fi
+            if _is_optional_argment "$arg_strings"; then
+                local option_string=$(_choose_shortest_optional_string "$arg_strings")
+                one_arg_usage="$option_string $_metavar_string"
+                one_arg_usage=${one_arg_usage% }
+                if [[ $Argparser_argument_required[$key] != true ]]; then
+                    one_arg_usage="[$one_arg_usage]"
+                fi
+            else
+                one_arg_usage=$_metavar_string
+            fi
+            _argparser_usage+=" $one_arg_usage"
         done
     }
 
@@ -703,7 +746,7 @@ function argparser()
             fi
             shift
         done
-        echo "$shortest_one"
+        printf "%s" "$shortest_one"
     }
 
     # action API
@@ -721,8 +764,28 @@ function argparser()
     {
         local dest=$1
         shift 6
-        if (($# > 0)) && [[ $dest != '' ]]; then
-            _globals_register register "$dest" "$@"
+        _globals_register register "$dest" "$@"
+    }
+
+    # - $1: set|no_set, whether or not set to dest by argparser_store
+    # - $2: key
+    # - $3: command-line argument string
+    function _do_action()
+    {
+        local to_set=$1
+        local key=$2
+        local cl_arg_string=$3
+        shift 3
+        local action=${Argparser_argument_action[$key]}
+        local dest=${Argparser_argument_dest[$key]}
+        local arg_strings=${Argparser_argument_strings[$key]}
+        dest=$(_choose_dest "$dest" "$arg_strings")
+        if [[ $action = '' ]]; then
+            if [[ $to_set = 'set' ]]; then
+                argparser_store "$dest" "$cl_arg_string" "$arg_strings" - - - "$@"
+            fi
+        else
+            $action "$dest" "$cl_arg_string" "$arg_strings" - - - "$@"
         fi
     }
 
@@ -741,7 +804,7 @@ function argparser()
                 metavar=$(_choose_longest_argument_string "$argument_string")
             fi
         fi
-        echo "$metavar"
+        printf "%s" "$metavar"
     }
 
     function _choose_longest_argument_string()
@@ -758,7 +821,7 @@ function argparser()
             fi
             shift
         done
-        echo "$longest_one"
+        printf "%s" "$longest_one"
     }
 
     # - $1: dest
@@ -815,9 +878,6 @@ function argparser()
         local action__=$1
         shift
         if [[ $action__ = 'register' || $action__ = 'arbitrary' ]]; then
-            if (( $# < 2 )); then
-                argparser_error "ARGPARSER_NAME" "$FUNCNAME $action__: expected 2 arguments." internal
-            fi
             local variable_name__=$1
             local pattern__='^[_a-zA-Z][_0-9a-zA-Z]*$'
             if [[ ! $1 =~ $pattern__ ]]; then
