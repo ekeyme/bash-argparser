@@ -6,97 +6,32 @@ function callback() { :; }
 
 function test_argparser()
 {
-    printf '%s: ' 'argparser should store the right value to globals varibles'
-
+    printf "%s: %s: " "$FUNCNAME" 'argparser should store the right value to globals varibles'
     local app_name='fakeapp'
-    local prologue='prologue'
-    local usage='%(prog_name) %(other_difine_string) do something'
+    local prologue='%(prog)s prologue'
+    local usage='%(prog)s do something'
     local add_help=true
-    local description='app description'
-    local epilog='Author: ekeyme'
-    local help=callback
+    local desc='%(prog)s description'
+    local epilog='%(prog)s Author: ekeyme'
+    local help='%(prog)s help'
     local prefix_chars='-+'
     local nargs_extending_EOT='!'
 
     argparser $app_name \
         prefix_chars="$prefix_chars" prologue="$prologue" \
         usage="$usage" \
-        add_help="$add_help" description="$description" \
+        add_help="$add_help" desc="$desc" \
         epilog="$epilog" \
         help="$help" \
         nargs_extending_EOT="$nargs_extending_EOT"
 
-    if [[ $Argparser_prog_name = $app_name ]] && \
-            [[ $Argparser_prologue = $prologue ]] && \
-            [[ $Argparser_usage = $usage ]] && \
-            [[ $Argparser_add_help = $add_help ]] && \
-            [[ $Argparser_description = $description ]] && \
-            [[ $Argparser_epilog = $epilog ]] && \
-            [[ $Argparser_help = $help ]] && \
-            [[ $Argparser_prefix_chars = $prefix_chars ]]
+    if is_the_same_arr "$Argparser_prog_name" "$Argparser_prologue" \
+        "$Argparser_usage" "$Argparser_add_help" "$Argparser_desc" \
+        "$Argparser_epilog" "$Argparser_help" "$Argparser_prefix_chars" \
+        "$Argparser_nargs_extending_EOT" \
+        -- "$app_name" "$prologue" "$usage" "$add_help" "$desc" \
+        "$epilog" "$help" "$prefix_chars" "$nargs_extending_EOT"
     then
-        echo ok
-    else
-        echo fail
-    fi
-}
-
-function test__parse_parameters()
-{
-    argparser
-    printf '%s: ' 'parse_parameters should give the right value when has more than 1 options to parse'
-    v='ekeyme
-    dsf
-    fdsf'\''d
-
-    sdsf'\'
-    in_parameter=(NAME=name AGE=age -- name="$v" age=26)
-    _parse_parameters "${in_parameter[@]}"
-
-    if [[ ( $NAME = $v ) && ( $AGE = 26 ) ]]; then
-        echo ok
-    else
-        echo fail
-    fi
-}
-
-function test__parse_parameters2()
-{
-    argparser
-    printf '%s: ' 'parse_parameters should exit when get invalid varible name'
-    in_parameter=('invalid varible name'=name -- name=ekeyme)
-    if (_parse_parameters "${in_parameter[@]}"); then
-        echo fail
-    else
-        echo ok
-    fi
-}
-
-function test__parse_parameters3()
-{
-    argparser
-    printf '%s: ' 'parse_parameters should exit when get unkonwn to parsing option'
-    in_parameter=('NAME'=name -- name=ekeyme unkonwn_option=kk)
-    if (_parse_parameters "${in_parameter[@]}"); then
-        echo fail
-    else
-        echo ok
-    fi
-}
-
-function test__parse_parameters4()
-{
-    argparser
-    printf '%s: ' 'parse_parameters should give the right value when has just 1 option to parse'
-    v='ekeyme
-    dsf
-    fdsf'\''d
-
-    sdsf'\'
-    in_parameter=(NAME=name -- name="$v")
-    _parse_parameters "${in_parameter[@]}"
-
-    if [[ $NAME = $v ]]; then
         echo ok
     else
         echo fail
@@ -464,7 +399,7 @@ function test_argparser_parse5()
 function test_argparser_parse99()
 {
     argparser
-    printf '%s: %s: ' "$FUNCNAME" 'argparser_parse should print help doc and exit.'
+    printf '%s: %s: ' "$FUNCNAME" 'argparser_parse should print help doc and exit'
     argparser
     if (argparser_parse -h); then
         echo fail
@@ -528,4 +463,17 @@ function test__format_usge()
     argparser_add_arg source default='Guangzhou Doc' nargs='?'
     argparer_usage
 }
-test__format_usge
+
+function test_argparser_help()
+{
+    argparser
+    argparser_add_arg -v dest=verbose default=false const=true nargs=0
+    argparser_add_arg -q dest=quit_model default=false const=true nargs=0
+    argparser_add_arg -n --name default=ekeyme nargs=?
+    argparser_add_arg -e --emails dest=emails nargs=2
+    argparser_add_arg money dest=how_much nargs=1
+    argparser_add_arg currency nargs=1
+    argparser_add_arg distribution_to default='/tmp' nargs='*'
+    argparser_add_arg source default='Guangzhou Doc' nargs='?'
+    argparser_help
+}
