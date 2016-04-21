@@ -402,9 +402,9 @@ function test_argparser_parse99()
     printf '%s: %s: ' "$FUNCNAME" 'argparser_parse should print help doc and exit'
     argparser
     if (argparser_parse -h); then
-        echo fail
-    else
         echo ok
+    else
+        echo fail
     fi
 }
 
