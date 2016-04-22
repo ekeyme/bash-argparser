@@ -417,6 +417,22 @@ function test_argparser_parse6()
     fi
 }
 
+function test_argparser_parse7()
+{
+    printf '%s: %s: ' "$FUNCNAME" 'argparser_parse should give the default value of positional option with nargs=remain, when no more argument supplied'
+    argparser
+    argparser_add_arg -f dest=file
+    argparser_add_arg more_args nargs=remain default='default value for remain'
+    argparser_parse -f file1 
+
+    ex_value='default value for remain'
+    if [[ $more_args = $ex_value ]]; then
+        echo ok
+    else
+        echo fail
+    fi
+}
+
 function test_argparser_parse99()
 {
     argparser
@@ -467,6 +483,7 @@ function is_the_same_arr()
 (test_argparser_parse4)
 (test_argparser_parse5)
 (test_argparser_parse6)
+(test_argparser_parse7)
 (test_argparser_parse99)
 
 
