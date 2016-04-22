@@ -347,7 +347,6 @@ function test_argparser_parse3()
 
 function test_argparser_parse4()
 {
-    argparser
     printf '%s: %s: ' "$FUNCNAME" 'argparser_parse should give the right values of options'
     argparser
     argparser_add_arg command
@@ -384,12 +383,34 @@ function test_argparser_parse4()
 
 function test_argparser_parse5()
 {
-    argparser
     printf '%s: %s: ' "$FUNCNAME" 'argparser_parse exit when required argument does not be supplied'
     argparser
     argparser_add_arg -f dest=file required=true
     argparser_add_arg -n dest=name nargs=1
     if (argparser_parse -n ekeyme); then
+        echo fail
+    else
+        echo ok
+    fi
+}
+
+function test_argparser_parse6()
+{
+    printf '%s: %s: ' "$FUNCNAME" 'argparser_parse should tear down the functions and variables created by argparser'
+    argparser
+    argparser_add_arg -f dest=file
+    argparser_parse -f 'ddd'
+
+    # set the have tear-down functions to argv
+    set -- _format_option_flag _format_usge _get_argparser_optional_arg_key argparser argparser_add_arg
+    while (($# > 0)); do
+        if (type "$1" 1>/dev/null 2>/dev/null); then
+            local flag=false
+            break
+        fi
+        shift
+    done
+    if [[ $flag = false ]]; then
         echo fail
     else
         echo ok
@@ -445,6 +466,7 @@ function is_the_same_arr()
 (test_argparser_parse3)
 (test_argparser_parse4)
 (test_argparser_parse5)
+(test_argparser_parse6)
 (test_argparser_parse99)
 
 
