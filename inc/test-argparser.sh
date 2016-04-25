@@ -1,9 +1,5 @@
 source ./argparser
 
-function action_callback() { :; }
-function check_callback() { :; }
-function callback() { :; }
-
 function test_argparser()
 {
     printf "%s: %s: " "$FUNCNAME" 'argparser should store the right value to globals varibles'
@@ -34,24 +30,24 @@ function test_argparser()
     then
         echo ok
     else
-        echo fail
+        echo -e "\033[31mfail\033[0m"
     fi
 }
 
 function test_argparser_add_arg()
 {
-    argparser
-    printf '%s: ' 'argparser_add_arg should give right array to store data'
+    argparser add_help=false
+    printf '%s: ' "$FUNCNAME should register the right values to globals varibles"
     local dest=(dest dest1)
     local check=(check_callback check_callback)
     local action=(action_callback action_callback)
     local desc=(desc desc1)
     local metavar=(metavar metavar1)
-    local required=(required required1)
+    local required=(false true)
     local choices=(choices choices1)
     local default=(default default1)
     local const=(const const1)
-    local nargs=(nargs nargs1)
+    local nargs=('?' '*')
     argparser_add_arg -n --name \
         dest=${dest[0]} check=${check[0]} action=${action[0]} desc=${desc[0]} \
         metavar=${metavar[0]} required=${required[0]} choices=${choices[0]} \
@@ -61,76 +57,64 @@ function test_argparser_add_arg()
         metavar=${metavar[1]} required=${required[1]} choices=${choices[1]} \
         default=${default[1]} const=${const[1]} nargs=${nargs[1]}
 
-    if [[ '-a|--age' = ${Argparser_option_strings[1]} ]] && \
-            [[ ${dest[1]} = ${Argparser_option_dest[1]} ]] && \
-            [[ ${check[1]} = ${Argparser_option_check[1]} ]] && \
-            [[ ${action[1]} = ${Argparser_option_action[1]} ]] && \
-            [[ ${default[1]} = ${Argparser_option_default[1]} ]] && \
-            [[ ${const[1]} = ${Argparser_option_const[1]} ]] && \
-            [[ ${nargs[1]} = ${Argparser_option_nargs[1]} ]] && \
-            [[ ${desc[1]} = ${Argparser_option_desc[1]} ]] && \
-            [[ ${metavar[1]} = ${Argparser_option_metavar[1]} ]] && \
-            [[ ${required[1]} = ${Argparser_option_required[1]} ]] && \
-            [[ ${choices[1]} = ${Argparser_option_choices[1]} ]]; then
+    if [[ '-a|--age' = ${Argparser_argument_strings[1]} ]] && \
+            [[ ${dest[1]} = ${Argparser_argument_dest[1]} ]] && \
+            [[ ${check[1]} = ${Argparser_argument_check[1]} ]] && \
+            [[ ${action[1]} = ${Argparser_argument_action[1]} ]] && \
+            [[ ${default[1]} = ${Argparser_argument_default[1]} ]] && \
+            [[ ${const[1]} = ${Argparser_argument_const[1]} ]] && \
+            [[ ${nargs[1]} = ${Argparser_argument_nargs[1]} ]] && \
+            [[ ${desc[1]} = ${Argparser_argument_desc[1]} ]] && \
+            [[ ${metavar[1]} = ${Argparser_argument_metavar[1]} ]] && \
+            [[ ${required[1]} = ${Argparser_argument_required[1]} ]] && \
+            [[ ${choices[1]} = ${Argparser_argument_choices[1]} ]]; then
         echo ok
     else
-        echo fail
+        echo -e "\033[31mfail\033[0m"
     fi
 }
 
 function test_argparser_add_arg1()
 {
     argparser
-    printf '%s: ' 'argparser_add_arg should raise error when const not supply and nargs is 0|?|*'
-
-    if (argparser_add_arg -n --name nargs='0'); then
-        echo fail
-    else
-        echo ok
-    fi
-}
-
-function test_argparser_add_arg2()
-{
-    argparser
-    printf '%s: ' 'argparser_add_arg should give the right nargs for position argment'
+    printf '%s: ' "$FUNCNAME should give the right nargs for position argment"
     argparser_add_arg name default='has default'
     argparser_add_arg age
     set -- "${Argparser_argument_nargs[@]}"
     if [[ $2 = '?' && $3 = 1 ]]; then
         echo ok
     else
-        echo fail
+        echo -e "\033[31mfail\033[0m"
+    fi
+}
+
+function test_argparser_add_arg2()
+{
+    argparser
+    printf '%s: ' "$FUNCNAME should not support const/required option for position argment"
+    if (argparser_add_arg name const='this should not supply' ) && \
+            (argparser_add_arg age required=true ); then
+        echo -e "\033[31mfail\033[0m"
+    else
+        echo ok
     fi
 }
 
 function test_argparser_add_arg3()
 {
     argparser
-    printf '%s: ' 'argparser_add_arg should not support const/required option for position argment'
-    if (argparser_add_arg name const='this should not supply' ) && \
-            (argparser_add_arg age required=true ); then
-        echo fail
-    else
-        echo ok
-    fi
-}
-
-function test_argparser_add_arg4()
-{
-    argparser
-    printf '%s: ' 'argparser_add_arg should not support >1 position argments'
+    printf '%s: ' "$FUNCNAME could only support just 1 position argments"
     if (argparser_add_arg name name2); then
-        echo fail
+        echo -e "\033[31mfail\033[0m"
     else
         echo ok
     fi
 }
 
-function test_argparser_parse()
+function test_argparser_parse1_1()
 {
     argparser
-    printf '%s: %s: ' "$FUNCNAME" 'argparser_parse should give the right values of options'
+    printf '%s: %s: ' "$FUNCNAME" 'Extending(nargs=+) Test: change the order of adding arguments'
     argparser_add_arg files nargs=+
     argparser_add_arg dest nargs=1
 
@@ -143,14 +127,14 @@ function test_argparser_parse()
         is_the_same_arr "${dest_expected[@]}" -- "${dest[@]}"; then
             echo ok
     else
-        echo fail
+        echo -e "\033[31mfail\033[0m"
     fi
 }
 
-function test_argparser_parse1()
+function test_argparser_parse1_2()
 {
     argparser
-    printf '%s: %s: ' "$FUNCNAME" 'argparser_parse should give the right values of options'
+    printf '%s: %s: ' "$FUNCNAME" 'Extending(nargs=+) Test: change the order of adding arguments'
     argparser_add_arg file nargs=1
     argparser_add_arg dest_dirs nargs=+
     args=(file1 file2 'dd ff f' file4)
@@ -161,14 +145,14 @@ function test_argparser_parse1()
         is_the_same_arr "${dest_dirs_ex[@]}" -- "${dest_dirs[@]}"; then
             echo ok
     else
-        echo fail
+        echo -e "\033[31mfail\033[0m"
     fi
 }
 
-function test_argparser_parse2()
+function test_argparser_parse2_1()
 {
     argparser
-    printf '%s: %s: ' "$FUNCNAME" 'argparser_parse should give the right values of options'
+    printf '%s: %s: ' "$FUNCNAME" 'With just 1 Extending nargs test'
     argparser_add_arg -v dest=verbose default=false const=true nargs=0
     argparser_add_arg -q dest=quit_model default=false const=true nargs=0
     argparser_add_arg -n --name default=ekeyme nargs=?
@@ -178,7 +162,6 @@ function test_argparser_parse2()
     argparser_add_arg distribution_to default='/tmp' nargs='*'
     argparser_add_arg source default='Guangzhou Doc' nargs='?'
     
-    # test 1
     arg=(-vqeekeyme@gmail.com ekeyme@foxmail.com 9999 dollar Beijing Hongkong - Zhanjiang)
     e_verbose=(true)
     e_quit_model=(true)
@@ -197,12 +180,25 @@ function test_argparser_parse2()
         is_the_same_arr "${e_currency[@]}" -- "${currency[@]}" &&\
         is_the_same_arr "${e_distribution_to[@]}" -- "${distribution_to[@]}" &&\
         is_the_same_arr "${e_source[@]}" -- "${source[@]}"; then
-            :
+            echo ok
     else
-        echo test 1: fail
-        exit 1
+        echo -e "\033[31mfail\033[0m"
     fi
+}
 
+function test_argparser_parse2_2()
+{
+    argparser
+    printf '%s: %s: ' "$FUNCNAME" 'With just 1 Extending nargs test'
+    argparser_add_arg -v dest=verbose default=false const=true nargs=0
+    argparser_add_arg -q dest=quit_model default=false const=true nargs=0
+    argparser_add_arg -n --name default=ekeyme nargs=?
+    argparser_add_arg -e --emails dest=emails nargs=2
+    argparser_add_arg money dest=how_much nargs=1
+    argparser_add_arg currency nargs=1
+    argparser_add_arg distribution_to default='/tmp' nargs='*'
+    argparser_add_arg source default='Guangzhou Doc' nargs='?'
+    
     # test 2
     arg=(-vqeekeyme@gmail.com ekeyme@foxmail.com 9999 dollar Beijing Hongkong Zhanjiang)
     e_verbose=(true)
@@ -222,13 +218,25 @@ function test_argparser_parse2()
         is_the_same_arr "${e_currency[@]}" -- "${currency[@]}" &&\
         is_the_same_arr "${e_distribution_to[@]}" -- "${distribution_to[@]}" &&\
         is_the_same_arr "${e_source[@]}" -- "${source[@]}"; then
-            :
+            echo ok
     else
-        echo test 2: fail
-        exit 1
+        echo -e "\033[31mfail\033[0m"
     fi
+}
 
-    # test 3
+function test_argparser_parse2_3()
+{
+    argparser
+    printf '%s: %s: ' "$FUNCNAME" 'With just 1 Extending nargs test'
+    argparser_add_arg -v dest=verbose default=false const=true nargs=0
+    argparser_add_arg -q dest=quit_model default=false const=true nargs=0
+    argparser_add_arg -n --name default=ekeyme nargs=?
+    argparser_add_arg -e --emails dest=emails nargs=2
+    argparser_add_arg money dest=how_much nargs=1
+    argparser_add_arg currency nargs=1
+    argparser_add_arg distribution_to default='/tmp' nargs='*'
+    argparser_add_arg source default='Guangzhou Doc' nargs='?'
+    
     arg=(-v -e ekeyme@gmail.com ekeyme@foxmail.com 9999 -n mozz dollar Beijing Hongkong Zhanjiang)
     e_verbose=(true)
     e_quit_model=(false)
@@ -247,26 +255,22 @@ function test_argparser_parse2()
         is_the_same_arr "${e_currency[@]}" -- "${currency[@]}" &&\
         is_the_same_arr "${e_distribution_to[@]}" -- "${distribution_to[@]}" &&\
         is_the_same_arr "${e_source[@]}" -- "${source[@]}"; then
-            :
+            echo ok
     else
-        echo test 3: fail
-        exit 1
+        echo -e "\033[31mfail\033[0m"
     fi
-
-    echo ok
 }
 
-function test_argparser_parse3()
+function test_argparser_parse3_1()
 {
     argparser
-    printf '%s: %s: ' "$FUNCNAME" 'argparser_parse should give the right values of options'
+    printf '%s: %s: ' "$FUNCNAME" 'Multiple extending nargs test: whether the nargs_Extending_EOT works'
     argparser_add_arg -v dest=verbose default=false const=true nargs=0
     argparser_add_arg -f --file default=ekeyme nargs=+
     argparser_add_arg -t --type default=r nargs=1
     argparser_add_arg distribution_to default='/tmp' nargs='*'
     argparser_add_arg user default=mozz nargs=?
 
-    # test 1
     arg=(-vf file1 file2 file3 -tdir magic castor - zj)
     e_verbose=(true)
     e_file=(file1 file2 file3)
@@ -279,13 +283,22 @@ function test_argparser_parse3()
         is_the_same_arr "${e_type[@]}" -- "${type[@]}" &&\
         is_the_same_arr "${e_distribution_to[@]}" -- "${distribution_to[@]}" &&\
         is_the_same_arr "${e_user[@]}" -- "${user[@]}"; then
-            :
+            echo ok
     else
-        echo test 1: fail
-        exit 1
+        echo -e "\033[31mfail\033[0m"
     fi
+}
 
-    # test 2
+function test_argparser_parse3_2()
+{
+    argparser
+    printf '%s: %s: ' "$FUNCNAME" 'Multiple extending nargs test: whether the nargs_Extending_EOT works'
+    argparser_add_arg -v dest=verbose default=false const=true nargs=0
+    argparser_add_arg -f --file default=ekeyme nargs=+
+    argparser_add_arg -t --type default=r nargs=1
+    argparser_add_arg distribution_to default='/tmp' nargs='*'
+    argparser_add_arg user default=mozz nargs=?
+
     arg=(-vf file1 file2 file3 - magic castor -tdir zj)
     e_verbose=(true)
     e_file=(file1 file2 file3)
@@ -298,13 +311,22 @@ function test_argparser_parse3()
         is_the_same_arr "${e_type[@]}" -- "${type[@]}" &&\
         is_the_same_arr "${e_distribution_to[@]}" -- "${distribution_to[@]}" &&\
         is_the_same_arr "${e_user[@]}" -- "${user[@]}"; then
-            :
+            echo ok
     else
-        echo test 2: fail
-        exit 1
+        echo -e "\033[31mfail\033[0m"
     fi
+}
 
-    # test 3
+function test_argparser_parse3_3()
+{
+    argparser
+    printf '%s: %s: ' "$FUNCNAME" 'Multiple extending nargs test: whether the nargs_Extending_EOT works'
+    argparser_add_arg -v dest=verbose default=false const=true nargs=0
+    argparser_add_arg -f --file default=ekeyme nargs=+
+    argparser_add_arg -t --type default=r nargs=1
+    argparser_add_arg distribution_to default='/tmp' nargs='*'
+    argparser_add_arg user default=mozz nargs=?
+
     arg=(-v magic castor -f file1 file2 file3 -tdir zj)
     e_verbose=(true)
     e_file=(file1 file2 file3)
@@ -317,13 +339,22 @@ function test_argparser_parse3()
         is_the_same_arr "${e_type[@]}" -- "${type[@]}" &&\
         is_the_same_arr "${e_distribution_to[@]}" -- "${distribution_to[@]}" &&\
         is_the_same_arr "${e_user[@]}" -- "${user[@]}"; then
-            :
+            echo ok
     else
-        echo test 3: fail
-        exit 1
+        echo -e "\033[31mfail\033[0m"
     fi
+}
 
-    # test 4
+function test_argparser_parse3_4()
+{
+    argparser
+    printf '%s: %s: ' "$FUNCNAME" 'Multiple extending nargs test: whether the nargs_Extending_EOT works'
+    argparser_add_arg -v dest=verbose default=false const=true nargs=0
+    argparser_add_arg -f --file default=ekeyme nargs=+
+    argparser_add_arg -t --type default=r nargs=1
+    argparser_add_arg distribution_to default='/tmp' nargs='*'
+    argparser_add_arg user default=mozz nargs=?
+
     arg=(magic castor -v -f file1 file2 file3 -tdir zj)
     e_verbose=(true)
     e_file=(file1 file2 file3)
@@ -336,59 +367,58 @@ function test_argparser_parse3()
         is_the_same_arr "${e_type[@]}" -- "${type[@]}" &&\
         is_the_same_arr "${e_distribution_to[@]}" -- "${distribution_to[@]}" &&\
         is_the_same_arr "${e_user[@]}" -- "${user[@]}"; then
-            :
+            echo ok
     else
-        echo test 4: fail
-        exit 1
+        echo -e "\033[31mfail\033[0m"
     fi
-
-    echo ok
 }
 
-function test_argparser_parse4()
+function test_argparser_parse4_1()
 {
-    printf '%s: %s: ' "$FUNCNAME" 'argparser_parse should give the right values of options'
+    printf '%s: %s: ' "$FUNCNAME" 'nargs=remain test'
     argparser
     argparser_add_arg command
     argparser_add_arg -o dest=options nargs=remain
 
-    # test 1
     arg=(mycommand -o -v -f file2 -t text)
     e_command=(mycommand)
     e_options=(-v -f file2 -t text)
     argparser_parse "${arg[@]}"
     if is_the_same_arr "${e_command[@]}" -- "${command[@]}" &&\
         is_the_same_arr "${e_options[@]}" -- "${options[@]}"; then
-        :
+        echo ok
     else
-        echo test 1: fail
-        exit 1
+        echo "\033[31mfail\033[0m"
     fi
+}
 
-    # test 2
+function test_argparser_parse4_1()
+{
+    printf '%s: %s: ' "$FUNCNAME" 'nargs=remain test'
+    argparser
+    argparser_add_arg command
+    argparser_add_arg -o dest=options nargs=remain
+
     arg=(mycommand -o)
     e_command=(mycommand)
     e_options=()
     argparser_parse "${arg[@]}"
     if is_the_same_arr "${e_command[@]}" -- "${command[@]}" &&\
         is_the_same_arr "${e_options[@]}" -- "${options[@]}"; then
-        :
+        echo ok
     else
-        echo test 2: fail
-        exit 1
+        echo "\033[31mfail\033[0m"
     fi
-
-    echo ok
 }
 
 function test_argparser_parse5()
 {
-    printf '%s: %s: ' "$FUNCNAME" 'argparser_parse exit when required argument does not be supplied'
+    printf '%s: %s: ' "$FUNCNAME" 'argparser_parse should exit when required argument does not supplied'
     argparser
     argparser_add_arg -f dest=file required=true
     argparser_add_arg -n dest=name nargs=1
     if (argparser_parse -n ekeyme); then
-        echo fail
+        echo "\033[31mfail\033[0m"
     else
         echo ok
     fi
@@ -411,7 +441,7 @@ function test_argparser_parse6()
         shift
     done
     if [[ $flag = false ]]; then
-        echo fail
+        echo "\033[31mfail\033[0m"
     else
         echo ok
     fi
@@ -429,19 +459,65 @@ function test_argparser_parse7()
     if [[ $more_args = $ex_value ]]; then
         echo ok
     else
-        echo fail
+        echo "\033[31mfail\033[0m"
     fi
 }
 
-function test_argparser_parse99()
+function test_argparser_parse9()
 {
     argparser
     printf '%s: %s: ' "$FUNCNAME" 'argparser_parse should print help doc and exit'
-    argparser
-    if (argparser_parse -h); then
+    local help_doc=$(argparser_parse -h)
+    local exit_code=$?
+
+    if (($exit_code == 0)) && grep -q '^usage: ' <<< "$help_doc"; then
         echo ok
     else
-        echo fail
+        echo "\033[31mfail\033[0m"
+    fi
+}
+
+function test_argparser_help()
+{
+    printf '%s: %s: ' "$FUNCNAME" 'argparser_help should print the right help doc'
+    argparser app_test \
+            prologue='prologue' \
+            desc='desc of %(prog)s' \
+            epilog='epilog'
+    argparser_add_arg -v dest=verbose default=false const=true nargs=0
+    argparser_add_arg -q dest=quit_model default=false const=true nargs=0
+    argparser_add_arg -n --name default=ekeyme nargs=?
+    argparser_add_arg -e --emails dest=emails nargs=2
+    argparser_add_arg money dest=how_much nargs=1
+    argparser_add_arg currency nargs=1
+    argparser_add_arg distribution_to default='/tmp' nargs='*'
+    argparser_add_arg source default='Guangzhou Doc' nargs='?'
+
+    local ex_help_doc=/tmp/source_01_argparser_help
+    local argparser_help_doc=/tmp/out_01_argparser_help
+    local ex_help='prologue
+
+usage: app_test [-h] [-v] [-q] [-n [name]] [-e emails emails] how_much currency [distribution_to ...] [source]
+desc of app_test
+
+  -h, --help                      show this help message and exit                      
+  -v                                                                                   
+  -q                                                                                   
+  -n, --name=[name]                                                                    
+  -e, --emails=emails ...                                                              
+  how_much                                                                             
+  currency                                                                             
+  distribution_to                                                                      
+  source                                                                               
+
+epilog'
+    echo "$ex_help" > "$ex_help_doc"
+    (argparser_help) > "$argparser_help_doc"
+
+    if (diff -q "$ex_help_doc" "$argparser_help_doc" 1>/dev/null) ; then
+        echo ok
+    else
+        echo -e "\033[31mfail\033[0m"
     fi
 }
 
@@ -472,47 +548,18 @@ function is_the_same_arr()
         done
 }
 
-(test_argparser)
-(test_argparser_add_arg2)
-(test_argparser_add_arg3)
-(test_argparser_add_arg4)
-(test_argparser_parse)
-(test_argparser_parse1)
-(test_argparser_parse2)
-(test_argparser_parse3)
-(test_argparser_parse4)
-(test_argparser_parse5)
-(test_argparser_parse6)
-(test_argparser_parse7)
-(test_argparser_parse99)
+function action_callback() { :; }
+function check_callback() { :; }
+function callback() { :; }
 
 
-
-
-function test__format_usge()
+# run the test
+function __main__()
 {
-    argparser
-    argparser_add_arg -v dest=verbose default=false const=true nargs=0
-    argparser_add_arg -q dest=quit_model default=false const=true nargs=0
-    argparser_add_arg -n --name default=ekeyme nargs=?
-    argparser_add_arg -e --emails dest=emails nargs=2
-    argparser_add_arg money dest=how_much nargs=1
-    argparser_add_arg currency nargs=1
-    argparser_add_arg distribution_to default='/tmp' nargs='*'
-    argparser_add_arg source default='Guangzhou Doc' nargs='?'
-    argparer_usage
+    test_funcs=($(declare -F | cut -d' ' -f3 | grep -P '^test_.+$'))
+    for func in "${test_funcs[@]}"; do
+        ($func)
+    done
 }
 
-function test_argparser_help()
-{
-    argparser
-    argparser_add_arg -v dest=verbose default=false const=true nargs=0
-    argparser_add_arg -q dest=quit_model default=false const=true nargs=0
-    argparser_add_arg -n --name default=ekeyme nargs=?
-    argparser_add_arg -e --emails dest=emails nargs=2
-    argparser_add_arg money dest=how_much nargs=1
-    argparser_add_arg currency nargs=1
-    argparser_add_arg distribution_to default='/tmp' nargs='*'
-    argparser_add_arg source default='Guangzhou Doc' nargs='?'
-    argparser_help
-}
+__main__
