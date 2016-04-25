@@ -421,13 +421,14 @@ function argparser()
                 args_help=$'\n'$args_help$'\n'
             fi
             if [[ $epilog != '' ]]; then
-                epilog=$'\n'$epilog$'\n'
+                epilog=$'\n'$epilog
             fi
             help=$prologue$usage$app_desc$args_help$epilog
         else
             help=$Argparser_help
         fi
-        printf "%s" "$help"
+        help=$(_translate "$help" prog "$Argparser_prog_name")
+        echo -e "$help"
         exit
     }
 
@@ -986,7 +987,7 @@ function argparser()
                         ;;
                     '+') _metavar_string="$metavar [$metavar ...]"
                         ;;
-                    'remain') _metavar_string="..."
+                    'remain') _metavar_string="[...]"
                         ;;
                     '0') _metavar_string=""
                         ;;
@@ -1027,9 +1028,10 @@ function argparser()
         local word to
         while (($# > 0)); do
             word="%(${1})s"
-            to=$2
+            shift
+            to=$1
+            shift
             str=${str//$word/$to}
-            shift 2
         done
         str=${str//'\s'/'s'}
         printf "%s" "$str"
