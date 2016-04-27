@@ -388,7 +388,7 @@ function test_argparser_parse4_1()
         is_the_same_arr "${e_options[@]}" -- "${options[@]}"; then
         echo ok
     else
-        echo "\033[31mfail\033[0m"
+        echo -e "\033[31mfail\033[0m"
     fi
 }
 
@@ -407,7 +407,7 @@ function test_argparser_parse4_1()
         is_the_same_arr "${e_options[@]}" -- "${options[@]}"; then
         echo ok
     else
-        echo "\033[31mfail\033[0m"
+        echo -e "\033[31mfail\033[0m"
     fi
 }
 
@@ -418,7 +418,7 @@ function test_argparser_parse5()
     argparser_add_arg -f dest=file required=true
     argparser_add_arg -n dest=name nargs=1
     if (argparser_parse -n ekeyme); then
-        echo "\033[31mfail\033[0m"
+        echo -e "\033[31mfail\033[0m"
     else
         echo ok
     fi
@@ -441,7 +441,7 @@ function test_argparser_parse6()
         shift
     done
     if [[ $flag = false ]]; then
-        echo "\033[31mfail\033[0m"
+        echo -e "\033[31mfail\033[0m"
     else
         echo ok
     fi
@@ -459,7 +459,7 @@ function test_argparser_parse7()
     if [[ $more_args = $ex_value ]]; then
         echo ok
     else
-        echo "\033[31mfail\033[0m"
+        echo -e "\033[31mfail\033[0m"
     fi
 }
 
@@ -473,7 +473,7 @@ function test_argparser_parse9()
     if (($exit_code == 0)) && grep -q '^usage: ' <<< "$help_doc"; then
         echo ok
     else
-        echo "\033[31mfail\033[0m"
+        echo -e "\033[31mfail\033[0m"
     fi
 }
 
