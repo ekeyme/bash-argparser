@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 
 ##
+# Copyright © 2016 Ekeyme Mo <ekeyme@gmail.com>
 #
+# The MIT License (MIT)
 
 # argparser initial function
 # This function work like generate an instance of argument parser for your app
