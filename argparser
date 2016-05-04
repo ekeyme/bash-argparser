@@ -14,7 +14,6 @@
 #
 # Some conceptions of this script are a little bit like python argparser module, so you can visit  
 # https://docs.python.org/3/library/argparse.html to make you easier to understand the conceptions.
-# Also you can go to the project website http://bash-argparser.ekeyme.com to get more infomation.
 #
 
 
