@@ -1,16 +1,39 @@
 #!/usr/bin/env bash
+# -*- coding: utf-8 -*-
 
 ##
 # Copyright © 2016 Ekeyme Mo <ekeyme@gmail.com>
 #
 # The MIT License (MIT)
+#
+#
+# This script, argparser, can helps you write a much user-friendly command-line parsing code 
+# in your bash shell script. You could just register what arguments requied in your 
+# program. And then apgparser will finish the left: parses the comand-line paramters you 
+# supplied, automatically generates usage and help message.
+#
+# Some conceptions of this script are a little bit like python argparser module, so you can visit  
+# https://docs.python.org/3/library/argparse.html to make you easier to understand the conceptions.
+# Also you can go to the project website http://bash-argparser.ekeyme.com to get more infomation.
+#
+
 
 # argparser initial function
-# This function work like generate an instance of argument parser for your app
-# It first initials some globals variable and registers some functions, then
-# assign user defined values to app level info variables(at the end of the function).
-# After these, user could use `argparser_add_arg` to register argument info as you like,
-# then use `argparser_parse "$@"` to parse the command line argumens.
+# This function initials some globals variables and defines some functions 
+# requied to parse parameters from command line.
+# It accepts the following optional parameters to initail globals variables:
+#
+#  - $1: program name, default script name
+#  - prologue=*: text show before `usage`
+#  - usage=*: message show how to use program(short help message), 
+#             default: generated from arguments added to parser
+#  - desc=*: short message to show what program can do, show after `usage`
+#  - epilog=*: text show after help message
+#  - prefix_chars=*: the set of characters that prefix optional arguments (default: '-') 
+#  - help=*: full program help text, default: generated from prologue/usage/desc/epilog added to argparser
+#  - add_help=*: whether to add -h/--help option to argparser, default: true
+#  - nargs_extending_EOT=*: the character that indecates where the extending nargs(+/*) argument should stop, 
+#                           default: '-'
 function argparser()
 {
     # Argparser reserved functions or variables.
@@ -207,7 +230,22 @@ function argparser()
         }
     }
 
+    # Define how a single command-line argument should be parsed.
     # argparser_add_arg argument_string [argument_string] [options]
+    #  - argument_string: either a name or a list of option strings
+    # [options]
+    #  - const=*: the value produced if optional argument is encountered in standalone style(like only -f)
+    #             (optionals only)
+    #  - default=*: the value produced if the argument is absent from the command line
+    #  - nargs=*: number of command-line arguments that should be consumed
+    #  - metavar=*: a name for the argument in usage messages
+    #  - dest=*: an destination variable name to accept value parsed by argparser
+    #  - desc=*: description of this argument
+    #  - action=*: an callback to be called when this argument is encountered at the command line,
+    #              default `argparser_store`
+    #  - choices=*: a container of the allowable values for the argument, use RegulateExpression pattern
+    #  - required=*: whether or not the command-line option may be omitted (optionals only)
+    #  - check=*: an callable function use to check whether values of this argument gotten is valid
 	function argparser_add_arg()
 	{
         # fetch option name
