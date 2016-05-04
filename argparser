@@ -7,7 +7,7 @@
 # The MIT License (MIT)
 #
 #
-# This script, argparser, can helps you write a much user-friendly command-line parsing code 
+# This script, argparser, can help you write a much user-friendly command-line parsing code 
 # in your bash shell script. You could just register what arguments requied in your 
 # program. And then apgparser will finish the left: parses the comand-line paramters you 
 # supplied, automatically generates usage and help message.
