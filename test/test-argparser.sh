@@ -1,4 +1,4 @@
-source ./argparser
+source ../argparser
 
 function test_argparser()
 {
@@ -28,6 +28,19 @@ function test_argparser()
         -- "$app_name" "$prologue" "$usage" "$add_help" "$desc" \
         "$epilog" "$help" "$prefix_chars" "$nargs_extending_EOT"
     then
+        echo ok
+    else
+        echo -e "\033[31mfail\033[0m"
+    fi
+}
+
+function test_argparser1()
+{
+    argparser usage='This is usage of %(prog)s'
+    printf "%s: %s: " "$FUNCNAME" "argparser should output the right supplied usage string"
+    ex_output='usage: This is usage of test-argparser.sh'
+    output=$(argparser_parse -h | head -n1)
+    if [[ $ex_output == $output ]]; then
         echo ok
     else
         echo -e "\033[31mfail\033[0m"

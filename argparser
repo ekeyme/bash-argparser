@@ -1050,6 +1050,7 @@ function argparser()
         local usage
         if [[ $Argparser_usage != $ARGPARSER_UN_DEFINE ]]; then
             usage='usage: '$(_argparser_translate "$Argparser_usage" prog "$Argparser_prog_name")
+            echo -n "$usage"
             return
         fi
         usage="usage: $Argparser_prog_name"
