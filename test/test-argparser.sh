@@ -1,4 +1,5 @@
-source ../argparser
+#!/usr/bin/env bash
+source $(cd "$(dirname "$(readlink -f "$BASH_SOURCE")")/" && pwd)/../argparser
 
 function test_argparser()
 {
@@ -70,7 +71,7 @@ function test_argparser_add_arg()
         metavar=${metavar[1]} required=${required[1]} choices=${choices[1]} \
         default=${default[1]} const=${const[1]} nargs=${nargs[1]}
 
-    if [[ '-a|--age' = ${Argparser_argument_strings[1]} ]] && \
+    if [[ '-a|--age' = ${Argparser_argument_flag[1]} ]] && \
             [[ ${dest[1]} = ${Argparser_argument_dest[1]} ]] && \
             [[ ${check[1]} = ${Argparser_argument_check[1]} ]] && \
             [[ ${action[1]} = ${Argparser_argument_action[1]} ]] && \
