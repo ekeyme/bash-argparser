@@ -492,12 +492,12 @@ function argparser()
 
     function _argparser_is_optional_argment()
     {
-        ((${#1} > 1)) && [[ $Argparser_prefix_chars =~ ${1:0:1} ]]
+        ((${#1} > 1)) && [[ $Argparser_prefix_chars =~ "${1:0:1}" ]]
     }
 
     function _argparser_is_positional_argment()
     {
-        [[ ! $Argparser_prefix_chars =~ ${1:0:1} ]]
+        [[ ! $Argparser_prefix_chars =~ "${1:0:1}" ]]
     }
 
     function _argparser_is_long_optional_argument()

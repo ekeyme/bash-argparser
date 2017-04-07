@@ -491,6 +491,23 @@ function test_argparser_parse9()
     fi
 }
 
+function test_argparser_parse10()
+{
+    argparser
+    printf '%s: %s: ' "$FUNCNAME" 'Dots should not cause argument errors'
+
+    argparser_add_arg command
+
+    arg=(.mycommand)
+    e_command=(.mycommand)
+    argparser_parse "${arg[@]}"
+    if is_the_same_arr "${e_command[@]}" -- "${command[@]}"; then
+        echo ok
+    else
+        echo -e "\033[31mfail\033[0m"
+    fi
+}
+
 function test_argparser_help()
 {
     printf '%s: %s: ' "$FUNCNAME" 'argparser_help should print the right help doc'
