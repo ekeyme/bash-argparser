@@ -253,8 +253,8 @@ function argparser()
 		local arg_flag=$1
         shift
         if _argparser_is_positional_argment "$arg_flag"; then
-            [[ $1 != '' && $1 != *=* ]] &&\
-                _argparser_error $ARGPARSER_NAME "positional argument name should be supplied just 1: $arg_flag $1."
+            [[ $1 != '' && $1 != *=* ]] && \
+                _argparser_error $ARGPARSER_NAME "positional argument name should not exceed 1: $arg_flag $1."
             _is_positional=true
         else
             while (( $# > 0 )); do
@@ -492,21 +492,19 @@ function argparser()
 
     function _argparser_is_optional_argment()
     {
-        ((${#1} > 1)) && [[ $Argparser_prefix_chars =~ ${1:0:1} ]]
+        ((${#1} > 1)) && [[ ${1:0:1} = ["$Argparser_prefix_chars"] ]]
     }
 
     function _argparser_is_positional_argment()
     {
-        [[ ! $Argparser_prefix_chars =~ ${1:0:1} ]]
+        [[ ${1:0:1} != ["$Argparser_prefix_chars"] ]]
     }
 
     function _argparser_is_long_optional_argument()
     {
-        local prefix1=${1:0:1}
-        local prefix2=${1:1:1}
         ((${#1} > 2)) && \
-            [[ $Argparser_prefix_chars =~ $prefix1 ]] &&\
-            [[ "$prefix1" = "$prefix2" ]]
+            [[ ${1:0:1} = ["$Argparser_prefix_chars"] ]] &&\
+            [[ ${1:1:1} = ["$Argparser_prefix_chars"] ]]
     }
 
     # initial work befor argparser_parse
@@ -856,7 +854,7 @@ function argparser()
                 if _argparser_is_positional_argment "$1"; then
                     values=("${values[@]}" "$1")
                     value_len=${#values[@]}
-                    if [[ $value_len == $nargs ]]; then
+                    if [[ $value_len = "$nargs" ]]; then
                         break
                     fi
                     shift
@@ -897,7 +895,7 @@ function argparser()
         local values=()
         # check if has_extending_EOT and are_all_args_positional
         while (($# > 0)); do
-            if [[ $1 = $Argparser_nargs_extending_EOT ]]; then
+            if [[ $1 = "$Argparser_nargs_extending_EOT" ]]; then
                 has_extending_EOT=true
                 break
             elif _argparser_is_optional_argment "$1"; then
