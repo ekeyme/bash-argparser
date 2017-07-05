@@ -124,7 +124,7 @@ function argparser()
 	{
 		local prog=$1
 		local message=$2
-		local error_type=$(tr [A-Z] [a-z] <<< "${3:-error}")
+		local error_type=$(tr '[A-Z]' '[a-z]' <<< "${3:-error}")
 		local no_exit=$4
 		printf "$prog: $error_type: "'%s\n' "$message" >&2
 		[[ $no_exit ]] || exit 1
