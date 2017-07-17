@@ -495,6 +495,17 @@ function test_argparser_parse10()
     ok_or_fail $?
 }
 
+function test_argparser_parse11()
+{
+    argparser
+    printf '%s: %s: ' "$FUNCNAME" 'error message should redirect into stderr when error occurs'
+
+    argparser_add_arg name
+    err=$(argparser_parse 2>/dev/null)
+    [[ "$err" == '' ]]
+    ok_or_fail $?
+}
+
 function test_argparser_help()
 {
     printf '%s: %s: ' "$FUNCNAME" 'argparser_help should print the right help doc'
